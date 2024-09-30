@@ -55,7 +55,17 @@ class WC_Gateway_Revolut_Pay_Blocks_Support extends Automattic\WooCommerce\Block
 	 * Fetches gateway status
 	 */
 	public function is_active() {
-		return $this->gateway->is_available();
+		if ( ! $this->gateway->is_available() ) {
+			return false;
+		}
+
+		$payment_method_locations = $this->gateway->get_option( 'revolut_pay_button_locations' );
+
+		if ( is_cart() && in_array( 'cart', $payment_method_locations, true ) ) {
+			return $this->gateway->is_shipping_required();
+		}
+
+		return true;
 	}
 
 	/**
@@ -86,7 +96,7 @@ class WC_Gateway_Revolut_Pay_Blocks_Support extends Automattic\WooCommerce\Block
 				array(
 					'payment_method_name'           => $this->name,
 					'locale'                        => $this->gateway->get_lang_iso_code(),
-					'can_make_payment'              => $this->gateway->is_available(),
+					'can_make_payment'              => $this->is_active(),
 					'merchant_public_key'           => $this->gateway->get_merchant_public_api_key(),
 					'order_currency'                => $descriptor->currency,
 					'order_total_amount'            => $descriptor->amount,
@@ -95,7 +105,7 @@ class WC_Gateway_Revolut_Pay_Blocks_Support extends Automattic\WooCommerce\Block
 					'create_revolut_order_nonce'    => wp_create_nonce( 'wc-revolut-create-order' ),
 					'create_revolut_order_endpoint' => get_site_url() . '/?wc-ajax=wc_revolut_create_order',
 					'process_order_endpoint'        => get_site_url() . '/?wc-ajax=wc_revolut_process_payment_result',
-					'mobile_redirect_url'           => wc_get_checkout_url(),
+					'mobile_redirect_url'           => $this->gateway->get_redirect_url(),
 				)
 			);
 		} catch ( Exception $e ) {

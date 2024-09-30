@@ -398,7 +398,8 @@ class WC_Gateway_Revolut_Pay extends WC_Payment_Gateway_Revolut {
 	 * Check is payment method available.
 	 */
 	public function is_available() {
-		if ( ! $this->check_currency_support() || ! $this->is_payment_method_available( 'pay_with_revolut' ) ) {
+		if ( ! $this->check_currency_support() ||
+			! $this->is_payment_method_available( 'pay_with_revolut' ) ) {
 			return false;
 		}
 

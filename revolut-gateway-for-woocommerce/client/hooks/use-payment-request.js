@@ -25,7 +25,7 @@ export const usePaymentRequest = ({ paymentOptions, onSuccess, onError }, deps) 
             onError(error.message)
           },
           onCancel() {
-              onError('Payment rejected!')
+              onError('Payment cancelled!')
           },
         })
 
@@ -43,5 +43,5 @@ export const usePaymentRequest = ({ paymentOptions, onSuccess, onError }, deps) 
     return () => destroyRef.current()
   }, deps)
 
-  return revolutPrbRef
+  return {revolutPrbRef, destroyRef}
 }

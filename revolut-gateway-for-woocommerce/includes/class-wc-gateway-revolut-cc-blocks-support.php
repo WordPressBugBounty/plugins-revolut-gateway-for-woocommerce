@@ -101,6 +101,10 @@ class WC_Gateway_Revolut_CC_Blocks_Support extends Automattic\WooCommerce\Blocks
 					'update_order_total_amount_endpoint' => get_site_url() . '/?wc-ajax=wc_revolut_update_order_total',
 					'process_order_endpoint'             => get_site_url() . '/?wc-ajax=wc_revolut_process_payment_result',
 					'is_save_payment_method_mandatory'   => $this->gateway->cart_contains_subscription(),
+					'card_holder_name_field_enabled'     => 'yes' === $this->gateway->get_option( 'enable_cardholder_name', 'yes' ),
+					'merchant_public_token'              => $this->gateway->get_merchant_public_api_key(),
+					'mode'                               => $this->gateway->get_mode(),
+					'promotional_banner_enabled'         => $this->gateway->upsell_banner_enabled(),
 				)
 			);
 		} catch ( Exception $e ) {

@@ -55,7 +55,20 @@ class WC_Gateway_Revolut_Payment_Request_Blocks_Support extends Automattic\WooCo
 	 * Fetches gateway status
 	 */
 	public function is_active() {
-		return $this->gateway->is_available();
+		if ( ! $this->gateway->is_available() ) {
+			return false;
+		}
+
+		$payment_method_locations = $this->gateway->get_option( 'payment_request_button_locations', array() );
+
+		if ( is_cart() && in_array( 'cart', $payment_method_locations, true ) ) {
+			return $this->gateway->is_shipping_required();
+		}
+
+		if ( is_checkout() && in_array( 'checkout', $payment_method_locations, true ) ) {
+			return true;
+		}
+		return false;
 	}
 
 	/**
@@ -87,7 +100,7 @@ class WC_Gateway_Revolut_Payment_Request_Blocks_Support extends Automattic\WooCo
 					'payment_method_name'           => $this->name,
 					'title'                         => $this->gateway->title,
 					'locale'                        => $this->gateway->get_lang_iso_code(),
-					'can_make_payment'              => $this->gateway->is_available(),
+					'can_make_payment'              => $this->is_active(),
 					'merchant_public_key'           => $this->gateway->get_merchant_public_api_key(),
 					'order_currency'                => $descriptor->currency,
 					'order_total_amount'            => $descriptor->amount,

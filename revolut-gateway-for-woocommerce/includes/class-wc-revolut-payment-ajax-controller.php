@@ -460,9 +460,10 @@ class WC_Revolut_Payment_Ajax_Controller {
 		check_ajax_referer( 'wc-revolut-create-order', 'security' );
 
 		try {
-			$revolut_public_id = $this->get_revolut_public_id();
-			$descriptor        = new WC_Revolut_Order_Descriptor( WC()->cart->get_total( '' ), get_woocommerce_currency(), null );
-			$data              = array();
+			$revolut_public_id   = $this->get_revolut_public_id();
+			$revolut_customer_id = $this->get_or_create_revolut_customer();
+			$descriptor          = new WC_Revolut_Order_Descriptor( WC()->cart->get_total( '' ), get_woocommerce_currency(), $revolut_customer_id );
+			$data                = array();
 
 			if ( $revolut_public_id ) {
 				$revolut_public_id = $this->update_revolut_order( $descriptor, $revolut_public_id, false );

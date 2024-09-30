@@ -401,7 +401,7 @@ trait WC_Gateway_Revolut_Express_Checkout_Helper_Trait {
 			$payment_request_button_locations = array();
 		}
 
-		if ( ! is_cart() && ! $this->is_product() ) {
+		if ( ! is_cart() && ! $this->is_product() && ! is_checkout() ) {
 			return false;
 		}
 

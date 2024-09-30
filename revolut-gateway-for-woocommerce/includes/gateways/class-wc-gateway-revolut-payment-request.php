@@ -147,36 +147,15 @@ class WC_Gateway_Revolut_Payment_Request extends WC_Payment_Gateway_Revolut {
 	 * Check is payment method available
 	 */
 	public function is_available() {
-		$payment_method = isset( $_POST['payment_method'] ) ? wc_clean( wp_unslash( $_POST['payment_method'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Missing
 
-		if ( $payment_method === $this->id ) {
-			return true;
-		}
+		if ( $this->api_settings->is_sandbox() ||
+		! $this->check_currency_support() ||
+		! $this->is_payment_method_available( array( 'apple_pay', 'google_pay' ) ) ) {
 
-		if ( ! $this->check_currency_support() || ! $this->is_payment_method_available( array( 'apple_pay', 'google_pay' ) ) ) {
 			return false;
 		}
 
-		$payment_method = isset( $_POST['payment_method'] ) ? wc_clean( wp_unslash( $_POST['payment_method'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Missing
-
-		if ( ( 'yes' === $this->enabled && is_product() ) ) {
-			return true;
-		}
-
-		$payment_request_button_locations = $this->get_option( 'payment_request_button_locations' );
-
-		if ( empty( $payment_request_button_locations ) ) {
-			$payment_request_button_locations = array();
-		}
-
-		if ( is_checkout() ) {
-			return 'yes' === $this->enabled && in_array( 'checkout', $payment_request_button_locations, true ) && ! $this->api_settings->is_sandbox();
-		}
-
-		if ( WC_Blocks_Utils::has_block_in_page( wc_get_page_id( 'checkout' ), 'woocommerce/checkout' ) ) {
-			return true;
-		}
-		return false;
+		return 'yes' === $this->enabled;
 	}
 
 	/**
@@ -473,12 +452,12 @@ class WC_Gateway_Revolut_Payment_Request extends WC_Payment_Gateway_Revolut {
 			$shipping_address = filter_input_array(
 				INPUT_POST,
 				array(
-					'country'   => FILTER_SANITIZE_STRING,
-					'state'     => FILTER_SANITIZE_STRING,
-					'postcode'  => FILTER_SANITIZE_STRING,
-					'city'      => FILTER_SANITIZE_STRING,
-					'address'   => FILTER_SANITIZE_STRING,
-					'address_2' => FILTER_SANITIZE_STRING,
+					'country'   => FILTER_SANITIZE_FULL_SPECIAL_CHARS,
+					'state'     => FILTER_SANITIZE_FULL_SPECIAL_CHARS,
+					'postcode'  => FILTER_SANITIZE_FULL_SPECIAL_CHARS,
+					'city'      => FILTER_SANITIZE_FULL_SPECIAL_CHARS,
+					'address'   => FILTER_SANITIZE_FULL_SPECIAL_CHARS,
+					'address_2' => FILTER_SANITIZE_FULL_SPECIAL_CHARS,
 				)
 			);
 
