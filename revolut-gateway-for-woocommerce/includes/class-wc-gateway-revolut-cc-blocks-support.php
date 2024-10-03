@@ -55,7 +55,12 @@ class WC_Gateway_Revolut_CC_Blocks_Support extends Automattic\WooCommerce\Blocks
 	 * Fetches gateway status
 	 */
 	public function is_active() {
-		return $this->gateway->is_available();
+		try {
+			return $this->gateway->is_available();
+		} catch ( Exception $e ) {
+			$this->gateway->log_error( 'cc-block-is_active: ' . $e->getMessage() );
+			return false;
+		}
 	}
 
 	/**

@@ -55,17 +55,22 @@ class WC_Gateway_Revolut_Pay_Blocks_Support extends Automattic\WooCommerce\Block
 	 * Fetches gateway status
 	 */
 	public function is_active() {
-		if ( ! $this->gateway->is_available() ) {
+		try {
+			if ( ! $this->gateway->is_available() ) {
+				return false;
+			}
+
+			$payment_method_locations = $this->gateway->get_option( 'revolut_pay_button_locations', array() );
+
+			if ( is_cart() && in_array( 'cart', $payment_method_locations, true ) ) {
+				return $this->gateway->is_shipping_required();
+			}
+
+			return true;
+		} catch ( Exception $e ) {
+			$this->gateway->log_error( 'revolut-pay-block-is_active : ' . $e->getMessage() );
 			return false;
 		}
-
-		$payment_method_locations = $this->gateway->get_option( 'revolut_pay_button_locations' );
-
-		if ( is_cart() && in_array( 'cart', $payment_method_locations, true ) ) {
-			return $this->gateway->is_shipping_required();
-		}
-
-		return true;
 	}
 
 	/**

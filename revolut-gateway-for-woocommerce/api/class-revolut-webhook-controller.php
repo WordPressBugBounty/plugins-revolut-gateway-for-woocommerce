@@ -71,11 +71,11 @@ class Revolut_Webhook_Controller extends \WC_REST_Data_Controller {
 
 		register_rest_route(
 			$this->namespace,
-			'/' . $this->rest_base . '/webhook/prod',
+			'/' . $this->rest_base . '/webhook/live',
 			array(
 				'methods'             => \WP_REST_Server::ALLMETHODS,
 				'callback'            => array( $this, 'handle_revolut_webhook' ),
-				'permission_callback' => array( $this, 'revolut_webhook_permission_callback_prod' ),
+				'permission_callback' => array( $this, 'revolut_webhook_permission_callback_live' ),
 			)
 		);
 
@@ -91,11 +91,11 @@ class Revolut_Webhook_Controller extends \WC_REST_Data_Controller {
 
 		register_rest_route(
 			$this->namespace,
-			'/' . $this->rest_base . '/address/validation/webhook/prod',
+			'/' . $this->rest_base . '/address/validation/webhook/live',
 			array(
 				'methods'             => \WP_REST_Server::ALLMETHODS,
 				'callback'            => array( $this, 'handle_revolut_address_validation_webhook' ),
-				'permission_callback' => array( $this, 'revolut_address_validation_webhook_permission_callback_prod' ),
+				'permission_callback' => array( $this, 'revolut_address_validation_webhook_permission_callback_live' ),
 			)
 		);
 	}
@@ -108,8 +108,8 @@ class Revolut_Webhook_Controller extends \WC_REST_Data_Controller {
 	 *
 	 * @return bool
 	 */
-	public function revolut_address_validation_webhook_permission_callback_prod( $request = null ) {
-		$signing_secret = get_option( 'revolut_pay_synchronous_webhook_domain_prod_signing_key' );
+	public function revolut_address_validation_webhook_permission_callback_live( $request = null ) {
+		$signing_secret = get_option( 'revolut_pay_synchronous_webhook_domain_live_signing_key' );
 		return $this->revolut_address_validation_webhook_permission_callback( $request, $signing_secret );
 	}
 
@@ -144,8 +144,8 @@ class Revolut_Webhook_Controller extends \WC_REST_Data_Controller {
 	 *
 	 * @return bool
 	 */
-	public function revolut_webhook_permission_callback_prod( $request = null ) {
-		$signing_secret = get_option( 'prod_revolut_webhook_domain_signing_secret' );
+	public function revolut_webhook_permission_callback_live( $request = null ) {
+		$signing_secret = get_option( 'live_revolut_webhook_domain_signing_secret' );
 		return $this->revolut_webhook_permission_callback( $request, $signing_secret );
 	}
 
