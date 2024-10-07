@@ -17,7 +17,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  */
 class WC_Revolut_Apple_Pay_OnBoarding {
 
-	use WC_Revolut_Logger_Trait;
+	use WC_Gateway_Revolut_Helper_Trait;
 	/**
 	 * Onboarding file root directory.
 	 *
@@ -68,13 +68,6 @@ class WC_Revolut_Apple_Pay_OnBoarding {
 	public $success_messages;
 
 	/**
-	 * API settings
-	 *
-	 * @var WC_Revolut_Settings_API
-	 */
-	public $api_settings;
-
-	/**
 	 * Revolut payment request setting.
 	 *
 	 * @var array
@@ -92,8 +85,7 @@ class WC_Revolut_Apple_Pay_OnBoarding {
 	 * Constructor
 	 */
 	public function __construct() {
-		$this->api_settings = revolut_wc()->api_settings;
-		$this->api_client   = new WC_Revolut_API_Client( $this->api_settings, true );
+		$this->api_client = new WC_Revolut_API_Client( revolut_wc()->api_settings, true );
 
 		add_action( 'admin_init', array( $this, 'maybe_onboard_apple_pay_merchant' ) );
 		add_action( 'admin_notices', array( $this, 'admin_notices' ) );
@@ -142,8 +134,7 @@ class WC_Revolut_Apple_Pay_OnBoarding {
 	 * @param array $new_options new options.
 	 */
 	public function on_revolut_options_update( $old_options, $new_options ) {
-		$this->api_settings = revolut_wc()->api_settings;
-		$this->api_client   = new WC_Revolut_API_Client( $this->api_settings, true );
+		$this->api_client = new WC_Revolut_API_Client( revolut_wc()->api_settings, true );
 		$this->maybe_onboard_apple_pay_merchant();
 	}
 
@@ -207,7 +198,7 @@ class WC_Revolut_Apple_Pay_OnBoarding {
 	 * Check is api key configured.
 	 */
 	public function check_is_api_key_configured() {
-		return ! empty( $this->api_client->api_key ) && 'sandbox' !== $this->api_settings->get_option( 'mode' );
+		return ! empty( $this->api_client->api_key ) && 'sandbox' !== $this->api_client->get_mode();
 	}
 
 	/**
@@ -244,71 +235,80 @@ class WC_Revolut_Apple_Pay_OnBoarding {
 	 * Onboard Apple Pay merchant if required.
 	 */
 	public function maybe_onboard_apple_pay_merchant() {
+		try {
+			$available_payment_methods = $this->get_available_payment_methods( 100, 'EUR' );
+			if ( ! in_array( 'apple_pay', $available_payment_methods, true ) || ! $this->check_is_api_key_configured() ) {
+
+				return false;
+			}
 		$action = isset( $_POST['action'] ) ? wc_clean( wp_unslash( $_POST['action'] ) ) : ''; // phpcs:ignore 
 
-		if ( ! empty( $action ) && 'wc_revolut_onboard_applepay_domain' === $action ) {
-			return false; // skip for manual on-boarding.
-		}
+			if ( ! empty( $action ) && 'wc_revolut_onboard_applepay_domain' === $action ) {
+				return false; // skip for manual on-boarding.
+			}
 
-		if ( ! $this->check_is_shop_needs_onboarding() ) {
-			return false;
-		}
+			if ( ! $this->check_is_shop_needs_onboarding() ) {
+				return false;
+			}
 
-		flush_rewrite_rules();
+			flush_rewrite_rules();
 
-		if ( ! $this->download_onboarding_file() ) {
-			$this->revolut_payment_request_settings['apple_pay_merchant_onboarded_domain'] = '';
-			$this->revolut_payment_request_settings['apple_pay_merchant_onboarded']        = 'no';
-			update_option(
-				'woocommerce_revolut_payment_request_settings',
-				$this->revolut_payment_request_settings
-			);
+			if ( ! $this->download_onboarding_file() ) {
+				$this->revolut_payment_request_settings['apple_pay_merchant_onboarded_domain'] = '';
+				$this->revolut_payment_request_settings['apple_pay_merchant_onboarded']        = 'no';
+				update_option(
+					'woocommerce_revolut_payment_request_settings',
+					$this->revolut_payment_request_settings
+				);
 
-			return false;
-		}
+				return false;
+			}
 
-		$request_local_file = get_headers( $this->domain_onboarding_file_local_link );
-		if ( ! $request_local_file || ! strpos( $request_local_file[0], '200' ) ) {
-			$this->add_onboarding_error_message(
+			$request_local_file = get_headers( $this->domain_onboarding_file_local_link );
+			if ( ! $request_local_file || ! strpos( $request_local_file[0], '200' ) ) {
+				$this->add_onboarding_error_message(
+					__(
+						'Can not on-boarding Apple Pay merchant, Domain onboarding file is not accessible',
+						'revolut-gateway-for-woocommerce'
+					)
+				);
+				return false;
+			}
+
+			if ( ! $this->register_domain() ) {
+				$this->add_onboarding_error_message(
+					__(
+						'Can not on-boarding Apple Pay merchant',
+						'revolut-gateway-for-woocommerce'
+					)
+				);
+
+				$this->revolut_payment_request_settings['apple_pay_merchant_onboarded_domain'] = '';
+				$this->revolut_payment_request_settings['apple_pay_merchant_onboarded']        = 'no';
+				update_option(
+					'woocommerce_revolut_payment_request_settings',
+					$this->revolut_payment_request_settings
+				);
+
+				return false;
+			}
+
+			$this->remove_onboarding_file();
+
+			$this->revolut_payment_request_settings['apple_pay_merchant_onboarded_domain']  = $this->domain_name;
+			$this->revolut_payment_request_settings['apple_pay_merchant_onboarded_api_key'] = $this->api_client->api_key;
+			$this->revolut_payment_request_settings['apple_pay_merchant_onboarded']         = 'yes';
+			update_option( 'woocommerce_revolut_payment_request_settings', $this->revolut_payment_request_settings );
+
+			$this->add_onboarding_success_message(
 				__(
-					'Can not on-boarding Apple Pay merchant, Domain onboarding file is not accessible',
+					'Apple Pay merchant on-boarded successfully',
 					'revolut-gateway-for-woocommerce'
 				)
 			);
-			return false;
+		} catch ( Exception $e ) {
+			$this->log_error( 'maybe_onboard_apple_pay :' . $e->getMessage() );
 		}
-
-		if ( ! $this->register_domain() ) {
-			$this->add_onboarding_error_message(
-				__(
-					'Can not on-boarding Apple Pay merchant',
-					'revolut-gateway-for-woocommerce'
-				)
-			);
-
-			$this->revolut_payment_request_settings['apple_pay_merchant_onboarded_domain'] = '';
-			$this->revolut_payment_request_settings['apple_pay_merchant_onboarded']        = 'no';
-			update_option(
-				'woocommerce_revolut_payment_request_settings',
-				$this->revolut_payment_request_settings
-			);
-
-			return false;
-		}
-
-		$this->remove_onboarding_file();
-
-		$this->revolut_payment_request_settings['apple_pay_merchant_onboarded_domain']  = $this->domain_name;
-		$this->revolut_payment_request_settings['apple_pay_merchant_onboarded_api_key'] = $this->api_client->api_key;
-		$this->revolut_payment_request_settings['apple_pay_merchant_onboarded']         = 'yes';
-		update_option( 'woocommerce_revolut_payment_request_settings', $this->revolut_payment_request_settings );
-
-		$this->add_onboarding_success_message(
-			__(
-				'Apple Pay merchant on-boarded successfully',
-				'revolut-gateway-for-woocommerce'
-			)
-		);
 	}
 
 	/**

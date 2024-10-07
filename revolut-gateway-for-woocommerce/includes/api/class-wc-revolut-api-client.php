@@ -235,4 +235,13 @@ class WC_Revolut_API_Client {
 	public function set_public_key( $public_key ) {
 		$this->public_key = $public_key;
 	}
+
+	/**
+	 * Returns API mode.
+	 *
+	 * @return string
+	 */
+	public function get_mode() {
+		return $this->mode;
+	}
 }

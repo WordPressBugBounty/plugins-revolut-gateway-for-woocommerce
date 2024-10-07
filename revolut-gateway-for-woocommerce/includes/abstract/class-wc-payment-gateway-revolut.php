@@ -1693,7 +1693,7 @@ abstract class WC_Payment_Gateway_Revolut extends WC_Payment_Gateway_CC {
 			false,
 			$is_using_saved_payment_method,
 			false,
-			$wc_payment_token_id,
+			$wc_payment_token_id
 		);
 		if ( ! isset( $gateway_result['redirect'] ) || empty( $gateway_result['redirect'] ) || ! isset( $gateway_result['result'] ) || empty( $gateway_result['result'] ) ) {
 			throw new Exception( 'Something went wrong' );

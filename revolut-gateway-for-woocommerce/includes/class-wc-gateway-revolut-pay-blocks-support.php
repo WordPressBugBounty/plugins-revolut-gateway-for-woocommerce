@@ -66,7 +66,10 @@ class WC_Gateway_Revolut_Pay_Blocks_Support extends Automattic\WooCommerce\Block
 				return $this->gateway->is_shipping_required();
 			}
 
-			return true;
+			if ( is_checkout() ) {
+				return true;
+			}
+			return false;
 		} catch ( Exception $e ) {
 			$this->gateway->log_error( 'revolut-pay-block-is_active : ' . $e->getMessage() );
 			return false;
@@ -106,7 +109,7 @@ class WC_Gateway_Revolut_Pay_Blocks_Support extends Automattic\WooCommerce\Block
 					'order_currency'                => $descriptor->currency,
 					'order_total_amount'            => $descriptor->amount,
 					'wc_revolut_plugin_url'         => WC_REVOLUT_PLUGIN_URL,
-					'available_card_brands'         => array( 'revolut', ...$this->gateway->get_available_card_brands( $descriptor->amount, $descriptor->currency ) ),
+					'available_card_brands'         => array_merge( array( 'revolut' ), $this->gateway->get_available_card_brands( $descriptor->amount, $descriptor->currency ) ),
 					'create_revolut_order_nonce'    => wp_create_nonce( 'wc-revolut-create-order' ),
 					'create_revolut_order_endpoint' => get_site_url() . '/?wc-ajax=wc_revolut_create_order',
 					'process_order_endpoint'        => get_site_url() . '/?wc-ajax=wc_revolut_process_payment_result',

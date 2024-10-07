@@ -6,16 +6,16 @@
  * Author: Revolut
  * Author URI: https://www.revolut.com/business/online-payments
  * Text Domain: revolut-gateway-for-woocommerce
- * Version: 4.17.6
+ * Version: 4.17.7
  * Requires at least: 4.4
- * Tested up to: 6.5.4
- * WC tested up to: 8.9.2
+ * Tested up to: 6.6.2
+ * WC tested up to: 9.3.3
  * WC requires at least: 2.6
  */
 
 defined( 'ABSPATH' ) || exit;
 define( 'REVOLUT_PATH', plugin_dir_path( __FILE__ ) );
-define( 'WC_GATEWAY_REVOLUT_VERSION', '4.17.6' );
+define( 'WC_GATEWAY_REVOLUT_VERSION', '4.17.7' );
 define( 'WC_GATEWAY_PUBLIC_KEY_ENDPOINT', '/public-key/latest' );
 define( 'WC_GATEWAY_REVPAY_INDEX', 'USE_REVOLUT_PAY_2_0' );
 define( 'WC_REVOLUT_WAIT_FOR_ORDER_TIME', 2 );

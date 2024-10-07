@@ -305,7 +305,7 @@ class WC_Gateway_Revolut_CC extends WC_Payment_Gateway_Revolut {
 					'placeholder' => array(),
 					'style'       => array(),
 				),
-			),
+			)
 		);
 	}
 

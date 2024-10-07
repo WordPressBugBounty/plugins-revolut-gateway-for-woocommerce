@@ -213,7 +213,7 @@ trait WC_Gateway_Revolut_Helper_Trait {
 			$unit_price_amount = $this->get_revolut_order_total( $item->get_subtotal(), $currency );
 			$total_amount      = $this->get_revolut_order_total( $item->get_total(), $currency );
 			$description       = $product->get_description();
-			$product_url       = get_permalink( $product_id );
+			$product_url       = rawurlencode( get_permalink( $product_id ) );
 			$image_urls        = $this->get_product_images( $product );
 
 			if ( ! empty( $description ) && strlen( $description ) > 1024 ) {
@@ -247,7 +247,7 @@ trait WC_Gateway_Revolut_Helper_Trait {
 		$all_image_urls     = array();
 		$gallery_image_urls = array();
 
-		$main_image_url = wp_get_attachment_url( $product->get_image_id() );
+		$main_image_url = rawurlencode( wp_get_attachment_url( $product->get_image_id() ) );
 
 		if ( $main_image_url ) {
 			$all_image_urls[] = $main_image_url;
@@ -256,7 +256,7 @@ trait WC_Gateway_Revolut_Helper_Trait {
 		$gallery_image_ids = $product->get_gallery_image_ids();
 
 		foreach ( $gallery_image_ids as $image_id ) {
-			$gallery_image_urls[] = wp_get_attachment_url( $image_id );
+			$gallery_image_urls[] = rawurlencode( wp_get_attachment_url( $image_id ) );
 		}
 
 		return array_merge( $all_image_urls, $gallery_image_urls );
@@ -1001,7 +1001,7 @@ trait WC_Gateway_Revolut_Helper_Trait {
 	 */
 	public function get_available_card_brands( $amount, $currency ) {
 		try {
-			$available_card_brands = get_option( 'revolut_' . $currency . '_available_card_brands' );
+			$available_card_brands = get_option( "revolut_{$this->api_client->mode}_{$currency}_available_card_brands" );
 
 			if ( ! $available_card_brands ) {
 				$available_card_brands = $this->fetch_available_payment_methods_and_brand_logos( $amount, $currency )['card_brands'];
@@ -1021,7 +1021,7 @@ trait WC_Gateway_Revolut_Helper_Trait {
 	 */
 	public function get_available_payment_methods( $amount, $currency ) {
 		try {
-			$available_payment_methods = get_option( 'revolut_' . $currency . '_available_payment_methods' );
+			$available_payment_methods = get_option( "revolut_{$this->api_client->mode}_{$currency}_available_payment_methods" );
 
 			if ( ! $available_payment_methods ) {
 				$available_payment_methods = $this->fetch_available_payment_methods_and_brand_logos( $amount, $currency )['payment_methods'];
@@ -1092,12 +1092,12 @@ trait WC_Gateway_Revolut_Helper_Trait {
 
 		if ( isset( $order_details['available_payment_methods'] ) && ! empty( $order_details['available_payment_methods'] ) ) {
 			$available_payment_methods = array_map( 'strtolower', $order_details['available_payment_methods'] );
-			update_option( 'revolut_' . $currency . '_available_payment_methods', $available_payment_methods );
+			update_option( "revolut_{$this->api_client->mode}_{$currency}_available_payment_methods", $available_payment_methods );
 		}
 
 		if ( isset( $order_details['available_card_brands'] ) && ! empty( $order_details['available_card_brands'] ) ) {
 			$available_card_brands = array_map( 'strtolower', $order_details['available_card_brands'] );
-			update_option( 'revolut_' . $currency . '_available_card_brands', $available_card_brands );
+			update_option( "revolut_{$this->api_client->mode}_{$currency}_available_card_brands", $available_card_brands );
 		}
 		return array(
 			'payment_methods' => $available_payment_methods,
