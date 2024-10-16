@@ -567,7 +567,7 @@ class WC_Gateway_Revolut_CC extends WC_Payment_Gateway_Revolut {
 		$shipping_total      = $this->get_cart_total_shipping();
 		$hide_payment_method = ! empty( $hide_fieldset ) && ! $display_tokenization ? true : false;
 
-		$display_banner = $this->api_settings->get_option( 'disable_banner' ) === 'yes' ? '<div id="revolut-upsell-banner"></div>' : '';
+		$display_banner = $this->promotional_settings->upsell_banner_enabled() ? '<div id="revolut-upsell-banner"></div>' : '';
 
 		$cardholder_name_field = '';
 

@@ -70,19 +70,26 @@ abstract class WC_Payment_Gateway_Revolut extends WC_Payment_Gateway_CC {
 	public $card_payments_currency_list = array( 'AUD', 'CAD', 'CHF', 'CZK', 'DKK', 'EUR', 'GBP', 'HKD', 'HUF', 'JPY', 'NOK', 'NZD', 'PLN', 'RON', 'SEK', 'SGD', 'USD', 'ZAR' );
 
 	/**
+	 * Promotional settings
+	 *
+	 * @var WC_Revolut_Promotional_Settings
+	 */
+	public $promotional_settings;
+
+	/**
 	 * Constructor
 	 */
 	public function __construct() {
-		$this->api_settings = revolut_wc()->api_settings;
-		$this->has_fields   = true;
+		$this->api_settings         = revolut_wc()->api_settings;
+		$this->promotional_settings = revolut_wc()->promotional_settings;
+		$this->has_fields           = true;
 
 		$this->init_supports();
 		$this->init_form_fields();
 		$this->init_settings();
 
 		$this->api_client = new WC_Revolut_API_Client( $this->api_settings );
-
-		$this->icon = $this->get_icon();
+		$this->icon       = $this->get_icon();
 
 		add_filter( 'query_vars', array( $this, 'revolut_plugin_public_query_vars' ) );
 		add_filter( 'wc_revolut_settings_nav_tabs', array( $this, 'admin_nav_tab' ) );
@@ -92,6 +99,13 @@ abstract class WC_Payment_Gateway_Revolut extends WC_Payment_Gateway_CC {
 		add_action( 'add_option_woocommerce_revolut_settings', array( $this, 'request_available_payment_methods_and_brand_logos' ) );
 		add_action( 'update_option_woocommerce_revolut_settings', array( $this, 'request_available_payment_methods_and_brand_logos' ) );
 		add_action( 'woocommerce_update_order', array( $this, 'save_shipments_information' ), 10, 1 );
+
+		/*
+		*Hooks that render informational banner in standard checkout & cart pages
+		*/
+		add_action( 'woocommerce_review_order_before_payment', array( $this, 'revolut_pay_informational_banner_renderer' ) );
+		add_action( 'woocommerce_proceed_to_checkout', array( $this, 'revolut_pay_informational_banner_renderer' ) );
+
 	}
 
 	/**
@@ -324,15 +338,17 @@ abstract class WC_Payment_Gateway_Revolut extends WC_Payment_Gateway_CC {
 	}
 
 	/**
-	 * Crate html widget for reward banner
+	 * Creates html widget for promotional banner in order confirmation page.
+	 * Banner type depends on the gateway used to make the payment.
+	 * Returns "promotional" for other gateways and "enrollment" when R gateway is used.
 	 *
 	 * @return string
 	 */
-	public function get_upsell_banner_html() {
+	public function get_confirmation_page_promotional_banners() {
 		try {
 			$wc_order_id = (int) get_query_var( 'order-received' );
 
-			if ( $this->api_settings->get_option( 'disable_banner' ) !== 'yes' || ! $wc_order_id ) {
+			if ( ! $this->promotional_settings->upsell_banner_enabled() || ! $wc_order_id ) {
 				return '';
 			}
 
@@ -346,38 +362,62 @@ abstract class WC_Payment_Gateway_Revolut extends WC_Payment_Gateway_CC {
 			$revolut_payment_public_id = $wc_order->get_meta( 'revolut_payment_public_id', true );
 			$public_key                = $this->get_merchant_public_api_key();
 			$locale                    = $this->get_lang_iso_code();
-
-			$enrollment_confirmation_banner = "<div id='upsellEnrollmentConfirmationBanner'
-												data-banner-locale='" . $locale . "'
-												data-banner-phone='" . $customer_phone . "' 
-												data-banner-email='" . $customer_email . "' 
-												data-banner-order-public-id='" . $revolut_payment_public_id . "'
-												data-banner-merchant-public-key='" . $public_key . "'></div>";
-
-			$promotional_banner = "<div id='upsellPromotionalBanner' 
-									data-banner-transaction-id='" . $transaction_id . "' 
-									data-banner-phone='" . $customer_phone . "' 
-									data-banner-currency='" . $order_currency . "'
-									data-banner-merchant-public-key='" . $public_key . "'
-									data-banner-locale='" . $locale . "'
-									data-banner-email='" . $customer_email . "' ></div>";
+			$banner_type               = 'promotional';
+			$order_amount              = $this->get_revolut_order_total( $wc_order->get_total(), $order_currency );
 
 			switch ( $payment_method ) {
 				case WC_Gateway_Revolut_Pay::GATEWAY_ID:
 				case WC_Gateway_Revolut_Payment_Request::GATEWAY_ID:
 					return '';
 				case WC_Gateway_Revolut_CC::GATEWAY_ID:
-					return $enrollment_confirmation_banner;
-				default:
-					return $promotional_banner;
+					$banner_type = 'enrollment';
 			}
+
+			return "<div id='orderConfirmationBanner'
+						 data-banner-type='$banner_type'
+						 data-transaction-id='$transaction_id' 
+						 data-locale='$locale'
+						 data-phone='$customer_phone' 
+						 data-email='$customer_email' 
+						 data-currency='$order_currency'
+						 data-order-token='$revolut_payment_public_id'
+						 data-amount='$order_amount'
+						 data-public-token='$public_key'>
+						 </div>";
+
 		} catch ( Exception $e ) {
-			$this->log_error( 'get_upsell_banner_html : ', $e->getMessage() );
+			$this->log_error( 'get_confirmation_page_promotional_banners : ', $e->getMessage() );
 		}
 
 		return '';
 	}
 
+	/**
+	 * Returns information banner data to FE.
+	 *
+	 * @return array
+	 */
+	public function get_informational_banner_data() {
+		try {
+			$data = array(
+				'locale'                     => $this->get_lang_iso_code(),
+				'currency'                   => get_woocommerce_currency(),
+				'mode'                       => $this->get_mode(),
+				'orderToken'                 => $this->get_revolut_public_id(),
+				'publicToken'                => $this->get_merchant_public_api_key(),
+				'revolutPayIconVariant'      => $this->promotional_settings->revolut_pay_label_icon_variant(),
+				'gatewayUpsellBannerEnabled' => $this->promotional_settings->upsell_banner_enabled(),
+				'revPointsBannerEnabled'     => $this->promotional_settings->revpoints_banner_enabled(),
+				'amount'                     => $this->get_revolut_order_total( WC()->cart->get_total( '' ), get_woocommerce_currency() ),
+
+			);
+			return $data;
+		} catch ( Exception $e ) {
+			$this->log_error( "get_informational_banner_data: {$e->getMessage()} " );
+		}
+
+		return array();
+	}
 	/**
 	 * Add script to load card form
 	 */
@@ -405,12 +445,13 @@ abstract class WC_Payment_Gateway_Revolut extends WC_Payment_Gateway_CC {
 			'revolut-woocommerce',
 			'wc_revolut',
 			array(
-				'ajax_url'              => WC_AJAX::get_endpoint( '%%wc_revolut_gateway_ajax_endpoint%%' ),
-				'page'                  => $this->wc_revolut_get_current_page(),
-				'order_id'              => $this->wc_revolut_get_current_order_id(),
-				'order_key'             => $this->wc_revolut_get_current_order_key(),
-				'promotion_banner_html' => $this->get_upsell_banner_html(),
-				'nonce'                 => array(
+				'ajax_url'                  => WC_AJAX::get_endpoint( '%%wc_revolut_gateway_ajax_endpoint%%' ),
+				'page'                      => $this->wc_revolut_get_current_page(),
+				'order_id'                  => $this->wc_revolut_get_current_order_id(),
+				'order_key'                 => $this->wc_revolut_get_current_order_key(),
+				'promotion_banner_html'     => $this->get_confirmation_page_promotional_banners(),
+				'informational_banner_data' => $this->get_informational_banner_data(),
+				'nonce'                     => array(
 					'process_payment_result' => wp_create_nonce( 'wc-revolut-process-payment-result' ),
 					'billing_info'           => wp_create_nonce( 'wc-revolut-get-billing-info' ),
 					'customer_info'          => wp_create_nonce( 'wc-revolut-get-customer-info' ),
@@ -1533,12 +1574,6 @@ abstract class WC_Payment_Gateway_Revolut extends WC_Payment_Gateway_CC {
 	}
 
 	/**
-	 * Returns upsell banner availability
-	 */
-	public function upsell_banner_enabled() {
-		return $this->api_settings->get_option( 'disable_banner' ) === 'yes';
-	}
-	/**
 	 * Update available payment methods & card brands list.
 	 */
 	public function request_available_payment_methods_and_brand_logos() {
@@ -1701,5 +1736,14 @@ abstract class WC_Payment_Gateway_Revolut extends WC_Payment_Gateway_CC {
 		$result->set_status( isset( $gateway_result['result'] ) && 'success' === $gateway_result['result'] ? 'success' : 'failure' );
 		$result->set_payment_details( array_merge( $result->payment_details, $gateway_result ) );
 		$result->set_redirect_url( $gateway_result['redirect'] );
+	}
+	/**
+	 * Render Revolut Pay informational banner element.
+	 */
+	public function revolut_pay_informational_banner_renderer() {
+		if ( ! $this->promotional_settings->revpoints_banner_enabled() ) {
+			return false;
+		}
+		echo wp_kses_post( '<div id="revolut-pay-informational-banner"></div>' );
 	}
 }

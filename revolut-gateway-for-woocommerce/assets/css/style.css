@@ -49,67 +49,116 @@
 
 #wc-revolut-cardholder-name,
 #wc-revolut-cardholder-name::placeholder {
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', Helvetica, Arial, Arimo, sans-serif;
+  font-family:
+    'Inter',
+    -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI',
+    'Roboto',
+    'Helvetica Neue',
+    Helvetica,
+    Arial,
+    Arimo,
+    sans-serif;
   color: #848484;
-} 
+}
 
 #wc-revolut-cardholder-name,
 #woocommerce-revolut-card-element {
-	border-radius: 10px;
-	border: 1px solid #dfe3e7;
-	background-color: #ffffff;
-	padding: 5px;
-	font-size: 16px;
-	box-shadow: none;
+  border-radius: 10px;
+  border: 1px solid #dfe3e7;
+  background-color: #ffffff;
+  padding: 5px;
+  font-size: 16px;
+  box-shadow: none;
 }
 
-#woocommerce-revolut-card-element{
-	margin-bottom: 14px;
+#woocommerce-revolut-card-element {
+  margin-bottom: 14px;
 }
 
 .wc-revolut-cardholder-name-error,
 .woocommerce-revolut-card-element-error {
   background-color: #fdedec !important;
-  color:#F26055 !important;
+  color: #f26055 !important;
 }
 
 #revolut-upsell-banner {
-	margin-top: 5px;
+  margin-top: 5px;
 }
 .hidden_by_revolut {
-	display: none !important;
+  display: none !important;
 }
 
 .revolut-payment-method-save label {
-	display: inline !important;
+  display: inline !important;
 }
 
 .revolut-error {
-	margin-top: 5px;
+  margin-top: 5px;
 }
 
 .revolut-pay {
-	height: auto;
+  height: auto;
 }
 
-.revolut-card-label-container, .revolut-pay-label-container  {
+.revolut-payment-method-label-container,
+.revolut-pay-label-container {
   display: flex;
   flex-direction: row;
   justify-content: space-between;
   width: 100%;
 }
 
-.revolut-card-label-brands, .revolut-pay-label-brands {
+.revolut-payment-method-label-scheme-icons {
   display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  flex-shrink: 0 !important
+}
+
+.payment_method_revolut_pay label {
+  display: flex !important;
+  align-items: center;
+  width: 100%;
+}
+
+.revolut-pay-label-title-wrapper {
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+#revolut-pay-label-informational-icon {
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+.revolut-pay-label-icons {
+  width: 60%;
+}
+.revolut-pay-label-title {
+  white-space: nowrap;
+  margin-right: 5px;
 }
 
 .card-field-error {
   color: red;
   font-size: 12px;
-  font-family: Inter, -apple-system, "system-ui", "Segoe UI", Roboto, "Helvetica Neue", Helvetica, Arial, Arimo, sans-serif;
+  font-family:
+    Inter,
+    -apple-system,
+    'system-ui',
+    'Segoe UI',
+    Roboto,
+    'Helvetica Neue',
+    Helvetica,
+    Arial,
+    Arimo,
+    sans-serif;
 }
 
-.revolutBlockUI{
+.revolutBlockUI {
   position: fixed;
   top: 0px;
   left: 0px;
@@ -123,7 +172,7 @@
   justify-content: center;
 }
 
-.revSpinnerContainer{
+.revSpinnerContainer {
   box-sizing: border-box;
   margin: 0px;
   padding: 0px;
@@ -134,7 +183,7 @@
   border-radius: 9999px;
 }
 
-.revSpinnerContainer .spinner{
+.revSpinnerContainer .spinner {
   --rui-spinner-circumference: 295.3097094374406px;
   --rui-spinner-dasharray: calc(295.3097094374406px * 0.6), 295.3097094374406px;
   animation-name: spinnerAnimation;
@@ -144,9 +193,9 @@
   transform-origin: center center;
 }
 
-@keyframes spinnerAnimation{
+@keyframes spinnerAnimation {
   0% {
-    stroke-dasharray: 1px,var(--rui-spinner-circumference);
+    stroke-dasharray: 1px, var(--rui-spinner-circumference);
     stroke-dashoffset: 0px;
     transform: rotate(0deg);
   }

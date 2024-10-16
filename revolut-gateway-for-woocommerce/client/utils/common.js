@@ -8,8 +8,6 @@ export const revolutSettings = paymentMethod => getSetting(`${paymentMethod}_dat
 
 export const i18n = msg => __(msg, 'revolut-gateway-for-woocommerce')
 
-export const { CART_STORE_KEY } = window.wc.wcBlocksData
-
 export const getAjaxURL = (endpoint, controller = 'revolut_payment_request_') => {
   return wc_revolut_payment_request_params.ajax_url
     .toString()
@@ -52,14 +50,3 @@ export const createAddress = address => {
     postcode: address.postcode,
   }
 }
-
-export const PAYMENT_METHODS = {
-  REVOLUT_CARD: 'revolut_cc',
-  REVOLUT_PAY: 'revolut_pay',
-  REVOLUT_PRB: 'revolut_payment_request',
-}
-
-export const CHECKOUT_PAYMENT_CONTEXT = 'wc/checkout/payments'
-export const isCartPage =
-  typeof wc_revolut_payment_request_params !== 'undefined' &&
-  wc_revolut_payment_request_params.is_cart_page

@@ -41,14 +41,14 @@ class WC_Gateway_Revolut_Pay_Blocks_Support extends Automattic\WooCommerce\Block
 		$this->gateway = $gateway;
 		$this->name    = $this->gateway->id;
 		add_action( 'woocommerce_rest_checkout_process_payment_with_context', array( $this->gateway, 'blocks_checkout_processor' ), 10, 2 );
-
 	}
 
 	/**
 	 * Initializes the payment gateway
 	 */
 	public function initialize() {
-		$this->settings = get_option( 'woocommerce_revolut_pay_settings', array() );
+		$this->settings          = get_option( 'woocommerce_revolut_pay_settings', array() );
+		$this->settings['title'] = wp_kses_post( $this->gateway->custom_revolut_pay_label( $this->gateway->title, $this->gateway->id ) );
 	}
 
 	/**

@@ -49,6 +49,7 @@ class WC_Gateway_Revolut_Pay extends WC_Payment_Gateway_Revolut {
 		add_action( 'woocommerce_after_add_to_cart_quantity', array( $this, 'display_payment_request_button_html' ), 1 );
 		add_action( 'woocommerce_proceed_to_checkout', array( $this, 'display_payment_request_button_html' ), 1 );
 		add_action( 'wc_ajax_revolut_payment_request_load_order_data', array( $this, 'revolut_payment_request_ajax_load_order_data' ) );
+		add_filter( 'woocommerce_gateway_title', array( $this, 'custom_revolut_pay_label' ), 10, 2 );
 	}
 
 	/**
@@ -242,20 +243,18 @@ class WC_Gateway_Revolut_Pay extends WC_Payment_Gateway_Revolut {
 			return false;
 		}
 
-		if ( ! $this->is_revolut_payment_request_gateway_active() ) {
-			?>
-			<div class="wc-revolut-pay-express-checkout-instance" id="wc-revolut-pay-express-checkout-container" style="clear:both;padding-top:1.5em;">
-				<div id="revolut-pay-express-checkout-button"></div>
-				<p id="wc-revolut-pay-express-checkout-button-separator" style="text-align:center;margin-bottom:1.5em;">&mdash;&nbsp;<?php echo esc_html( __( 'OR', 'revolut-gateway-for-woocommerce' ) ); ?>
-					&nbsp;&mdash;</p>
-			</div>
-			<?php
-			return;
-		}
-
 		?>
 		<div class="wc-revolut-pay-express-checkout-instance" id="wc-revolut-pay-express-checkout-container" style="clear:both;padding-top:1.5em;">
+			<?php if ( $this->promotional_settings->revpoints_banner_enabled() ) : ?>
+				<div id="revolut-pay-informational-banner"></div>
+			<?php endif; ?>
+
 			<div id="revolut-pay-express-checkout-button"></div>
+			<?php if ( ! $this->is_revolut_payment_request_gateway_active() ) : ?>
+				<p id="wc-revolut-pay-express-checkout-button-separator" style="text-align:center;margin-bottom:1.5em;">
+					&mdash;&nbsp;<?php echo esc_html( __( 'OR', 'revolut-gateway-for-woocommerce' ) ); ?>&nbsp;&mdash;
+				</p>
+			<?php endif; ?>
 		</div>
 		<?php
 	}
@@ -410,7 +409,7 @@ class WC_Gateway_Revolut_Pay extends WC_Payment_Gateway_Revolut {
 	 * Display Revolut Pay icon
 	 */
 	public function get_icon() {
-		$icons_str = '';
+		$icons_str = '<div class="revolut-pay-label-icons">';
 
 		$available_card_brands = array();
 
@@ -428,6 +427,7 @@ class WC_Gateway_Revolut_Pay extends WC_Payment_Gateway_Revolut {
 		$icons_str .= '<img class="revolut-card-gateway-icon-visa" src="' . WC_REVOLUT_PLUGIN_URL . '/assets/images/visa.svg" style="margin-left:2px" alt="Visa" />';
 		$icons_str .= '<img class="revolut-card-gateway-icon-mastercard" src="' . WC_REVOLUT_PLUGIN_URL . '/assets/images/mastercard.svg" style="margin-left:2px" alt="MasterCard" />';
 		$icons_str .= '<img class="rev-pay-v2" src="' . WC_REVOLUT_PLUGIN_URL . '/assets/images/revolut.svg" alt="Revolut Pay" />';
+		$icons_str .= '</div>';
 
 		return apply_filters( 'woocommerce_gateway_icon', $icons_str, $this->id );
 	}

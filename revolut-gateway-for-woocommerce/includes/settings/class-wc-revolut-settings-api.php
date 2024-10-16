@@ -161,13 +161,6 @@ class WC_Revolut_Settings_API extends WC_Settings_API {
 					'data-placeholder' => __( 'Select status', 'revolut-gateway-for-woocommerce' ),
 				),
 			),
-			'disable_banner'               => array(
-				'title'       => 'Banner Visibility',
-				'label'       => __( 'Customers can get instructions to signup to Revolut and get rewarded.', 'revolut-gateway-for-woocommerce' ),
-				'type'        => 'checkbox',
-				'description' => 'This will allow them to pay via Revolut Pay the next time they visit your store and checkout faster.',
-				'default'     => 'yes',
-			),
 		);
 	}
 

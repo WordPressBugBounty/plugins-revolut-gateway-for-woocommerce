@@ -109,7 +109,7 @@ class WC_Gateway_Revolut_CC_Blocks_Support extends Automattic\WooCommerce\Blocks
 					'card_holder_name_field_enabled'     => 'yes' === $this->gateway->get_option( 'enable_cardholder_name', 'yes' ),
 					'merchant_public_token'              => $this->gateway->get_merchant_public_api_key(),
 					'mode'                               => $this->gateway->get_mode(),
-					'promotional_banner_enabled'         => $this->gateway->upsell_banner_enabled(),
+					'promotional_banner_enabled'         => $this->gateway->promotional_settings->upsell_banner_enabled(),
 				)
 			);
 		} catch ( Exception $e ) {

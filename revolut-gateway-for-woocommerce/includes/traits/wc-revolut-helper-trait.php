@@ -229,9 +229,7 @@ trait WC_Gateway_Revolut_Helper_Trait {
 				'unit_price_amount' => $unit_price_amount,
 				'total_amount'      => $total_amount,
 				'external_id'       => (string) $product_id,
-				'image_urls'        => $image_urls,
 				'description'       => $description,
-				'url'               => $product_url,
 			);
 		}
 
@@ -1121,5 +1119,23 @@ trait WC_Gateway_Revolut_Helper_Trait {
 		}
 
 		return '';
+	}
+
+	/**
+	 * Generates custom RPay label with icon or link banner
+	 *
+	 * @param string $title current title.
+	 * @param string $gateway_id gateway id.
+	 * @return string
+	 */
+	public function custom_revolut_pay_label( $title, $gateway_id ) {
+		if ( $gateway_id === $this->id ) {
+			$title = '
+			<div class="revolut-pay-label-title-wrapper">
+				<span class="revolut-pay-label-title">' . $this->title . '</span>
+				<div id="revolut-pay-label-informational-icon"></div>
+			</div>';
+		}
+		return $title;
 	}
 }

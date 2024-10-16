@@ -30,6 +30,13 @@ class WC_Revolut_Manager {
 	public $api_settings;
 
 	/**
+	 * Revolut Promotional Settings API Class instance.
+	 *
+	 * @var object
+	 */
+	public $promotional_settings;
+
+	/**
 	 * Get singleton class instance.
 	 */
 	public static function instance() {
@@ -75,11 +82,12 @@ class WC_Revolut_Manager {
 
 		// settings.
 		include_once REVOLUT_PATH . 'includes/settings/class-wc-revolut-settings-api.php';
+		include_once REVOLUT_PATH . 'includes/settings/class-wc-revolut-promotional-settings.php';
 		include_once REVOLUT_PATH . 'includes/settings/class-wc-revolut-advanced-settings.php';
 		include_once REVOLUT_PATH . '/includes/class-wc-revolut-payment-tokens.php';
 
-		$this->api_settings = new WC_Revolut_Settings_API();
-
+		$this->api_settings         = new WC_Revolut_Settings_API();
+		$this->promotional_settings = new WC_Revolut_Promotional_Settings();
 		new WC_Revolut_Apple_Pay_OnBoarding();
 		new WC_Revolut_Payment_Ajax_Controller();
 		new WC_Gateway_Revolut_Payment_Request();
