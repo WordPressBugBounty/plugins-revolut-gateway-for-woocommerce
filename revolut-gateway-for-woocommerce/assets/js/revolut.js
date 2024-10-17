@@ -10,6 +10,17 @@ jQuery(function ($) {
     Popup: 'popup',
   }
 
+  const initRevolutUpsell = () => {
+    if (!wc_revolut || !wc_revolut.informational_banner_data) return null
+
+    const { locale, publicToken } = wc_revolut.informational_banner_data
+    if (!locale || !publicToken || typeof RevolutUpsell === 'undefined') return null
+
+    return RevolutUpsell({locale, publicToken})
+  }
+  
+  const RevolutUpsellInstance = initRevolutUpsell()
+
   let $body = $(document.body)
   let $form = $('form.woocommerce-checkout')
   let $order_review = $('form#order_review')
@@ -17,10 +28,6 @@ jQuery(function ($) {
   let instance = null
   let cardStatus = null
   let wc_order_id = 0
-  const RevolutUpsellInstance =
-    typeof RevolutUpsell !== 'undefined'
-      ? RevolutUpsell(wc_revolut.informational_banner_data)
-      : null
   let paymentRequestButtonResult = false
   let isPaymentRequestButtonActive =
     $('#woocommerce-revolut-payment-request-element').length > 0
@@ -1173,7 +1180,7 @@ jQuery(function ($) {
       amount,
       variant: 'banner',
       currency,
-      __metadata: { channel: 'woocommerce-blocks' },
+      __metadata: { channel: 'woocommerce' },
     })
   }
 
@@ -1190,7 +1197,7 @@ jQuery(function ($) {
         text: revolutPayIconVariant === 'cashback' ? 'cashback' : null,
         color: 'blue',
       },
-      __metadata: { channel: 'woocommerce-blocks' },
+      __metadata: { channel: 'woocommerce' },
     })
   }
 
