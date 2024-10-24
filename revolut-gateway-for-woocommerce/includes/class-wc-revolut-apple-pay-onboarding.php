@@ -241,7 +241,12 @@ class WC_Revolut_Apple_Pay_OnBoarding {
 
 				return false;
 			}
-		$action = isset( $_POST['action'] ) ? wc_clean( wp_unslash( $_POST['action'] ) ) : ''; // phpcs:ignore 
+
+			if ( ! $this->validate_hostname() ) {
+				return false;
+			}
+
+			$action = isset( $_POST['action'] ) ? wc_clean( wp_unslash( $_POST['action'] ) ) : ''; // phpcs:ignore 
 
 			if ( ! empty( $action ) && 'wc_revolut_onboard_applepay_domain' === $action ) {
 				return false; // skip for manual on-boarding.
@@ -409,5 +414,20 @@ class WC_Revolut_Apple_Pay_OnBoarding {
 	 */
 	public function add_onboarding_success_message( $message ) {
 		$this->success_messages[] = $message;
+	}
+
+	/**
+	 * Validates store domain name.
+	 */
+	public function validate_hostname() {
+		$parsed_url = wp_parse_url( home_url() );
+
+		if ( ! isset( $parsed_url['host'] ) ) {
+			return false;
+		}
+
+		$host = $parsed_url['host'];
+
+		return filter_var( $host, FILTER_VALIDATE_DOMAIN ) && 'localhost' !== $host;
 	}
 }

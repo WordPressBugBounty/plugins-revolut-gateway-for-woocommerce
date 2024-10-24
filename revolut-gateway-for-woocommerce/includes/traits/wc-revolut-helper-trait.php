@@ -212,7 +212,7 @@ trait WC_Gateway_Revolut_Helper_Trait {
 			$quantity          = $item->get_quantity();
 			$unit_price_amount = $this->get_revolut_order_total( $item->get_subtotal(), $currency );
 			$total_amount      = $this->get_revolut_order_total( $item->get_total(), $currency );
-			$description       = $product->get_description();
+			$description       = ! empty( $product->get_description() ) ? $product->get_description() : null;
 			$product_url       = rawurlencode( get_permalink( $product_id ) );
 			$image_urls        = $this->get_product_images( $product );
 
