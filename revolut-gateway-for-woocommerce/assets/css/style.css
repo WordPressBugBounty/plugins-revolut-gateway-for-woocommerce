@@ -124,7 +124,8 @@
 }
 
 .wc_payment_method.payment_method_revolut_pay, 
-.wc_payment_method.payment_method_revolut_cc{
+.wc_payment_method.payment_method_revolut_cc,
+.wc_payment_method.payment_method_revolut_payment_request {
   display: flex !important;
   flex-wrap: wrap;
 }
@@ -133,7 +134,9 @@
   display: flex !important;
 }
 
-.payment_box.payment_method_revolut_pay, .payment_box.payment_method_revolut_cc{
+.payment_box.payment_method_revolut_pay, 
+.payment_box.payment_method_revolut_cc, 
+.payment_method_revolut_payment_request{
   flex-basis: 100%;
 }
 
@@ -143,7 +146,6 @@
   display: flex !important;
   align-items: center;
   flex: 1;
-  font-weight: bold;
 }
 
 .revolut-label-informational-icon {
