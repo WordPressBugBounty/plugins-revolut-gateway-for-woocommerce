@@ -66,6 +66,13 @@ class WC_Revolut_Promotional_Settings extends WC_Revolut_Settings_API {
 				'description' => 'This will allow them to pay via Revolut Pay the next time they visit your store and checkout faster.',
 				'default'     => 'yes',
 			),
+			'revolut_points_banner_enabled' => array(
+				'title'       => 'Benefits banner',
+				'label'       => __( 'Displays informational banner with a brief description of Revolut Pay benefits', 'revolut-gateway-for-woocommerce' ),
+				'type'        => 'checkbox',
+				'description' => 'This allows your customers to open a pop-up with more details on the payment process and available benefits.',
+				'default'     => 'yes',
+			),
 			'revolut_pay_label_icon'        => array(
 				'title'       => 'Revolut Pay informational icon',
 				'description' => __( 'Displays an icon or a "Learn more" link which opens a pop-up with details on the Revolut Pay payment process and benefits', 'revolut-gateway-for-woocommerce' ),
@@ -94,7 +101,7 @@ class WC_Revolut_Promotional_Settings extends WC_Revolut_Settings_API {
 	 * Returns revpoints banner availability
 	 */
 	public function revpoints_banner_enabled() {
-		return false;
+		return 'yes' === $this->get_option( 'revolut_points_banner_enabled' );
 	}
 
 	/**

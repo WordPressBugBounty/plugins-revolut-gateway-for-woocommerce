@@ -16,7 +16,7 @@ jQuery(function ($) {
     const { locale, publicToken } = wc_revolut.informational_banner_data
     if (!locale || !publicToken || typeof RevolutUpsell === 'undefined') return null
 
-    return RevolutUpsell({locale, publicToken})
+    return RevolutUpsell({ locale, publicToken })
   }
   
   const RevolutUpsellInstance = initRevolutUpsell()
@@ -35,6 +35,9 @@ jQuery(function ($) {
   const revolut_pay_v2 = $('.revolut-pay-v2').length > 0
   const blocksLoaded =
     typeof wc !== 'undefined' && wc.wcBlocksRegistry?.getRegisteredInnerBlocks()
+  let revolutIconMounted = false
+  let gatewayBannerMounted = false
+  
   /**
    * Custom BlockUI
    */
@@ -1135,10 +1138,9 @@ jQuery(function ($) {
 
   $body.on('updated_checkout payment_method_selected', handleUpdate)
   $body.on('updated_checkout', () => {
-    if (RevolutUpsellInstance) {
-      mountCardGatewayBanner()
-      mountRevolutPayIcon()
-    }
+    if (!RevolutUpsellInstance) return
+    if (!gatewayBannerMounted) mountCardGatewayBanner()
+    if (!revolutIconMounted) mountRevolutPayIcon()
   })
 
   if ($body.hasClass('woocommerce-add-payment-method')) {
@@ -1173,9 +1175,16 @@ jQuery(function ($) {
   }
 
   const mountRevPointsBanner = () => {
+
+    if(typeof wc_revolut_pay_banner_data === 'undefined' ) {
+      return
+    }
+
     const { amount, currency } = wc_revolut.informational_banner_data
     const target = document.getElementById('revolut-pay-informational-banner')
+
     if (!target) return
+
     RevolutUpsellInstance.promotionalBanner.mount(target, {
       amount,
       variant: 'banner',
@@ -1185,10 +1194,17 @@ jQuery(function ($) {
   }
 
   const mountRevolutPayIcon = () => {
-    const { revolutPayIconVariant, amount, currency } =
-      wc_revolut.informational_banner_data
+
+    if(typeof wc_revolut === 'undefined' || typeof wc_revolut_pay_banner_data === 'undefined' ) {
+      return
+    }
+
+    const {amount, currency } = wc_revolut.informational_banner_data
+    const { revolutPayIconVariant } =  wc_revolut_pay_banner_data
+
     const target = document.getElementById('revolut-pay-label-informational-icon')
     if (!target || !revolutPayIconVariant) return
+
     RevolutUpsellInstance.promotionalBanner.mount(target, {
       amount,
       variant: revolutPayIconVariant === 'cashback' ? 'link' : revolutPayIconVariant,
@@ -1199,6 +1215,7 @@ jQuery(function ($) {
       },
       __metadata: { channel: 'woocommerce' },
     })
+    revolutIconMounted = true
   }
 
   const mountCardGatewayBanner = () => {
@@ -1211,6 +1228,7 @@ jQuery(function ($) {
       RevolutUpsellInstance.cardGatewayBanner.mount(target, {
         orderToken,
       })
+      gatewayBannerMounted = true
     }
   }
 

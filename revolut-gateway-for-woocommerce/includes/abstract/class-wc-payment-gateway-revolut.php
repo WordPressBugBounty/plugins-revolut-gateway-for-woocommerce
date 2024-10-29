@@ -99,13 +99,6 @@ abstract class WC_Payment_Gateway_Revolut extends WC_Payment_Gateway_CC {
 		add_action( 'add_option_woocommerce_revolut_settings', array( $this, 'request_available_payment_methods_and_brand_logos' ) );
 		add_action( 'update_option_woocommerce_revolut_settings', array( $this, 'request_available_payment_methods_and_brand_logos' ) );
 		add_action( 'woocommerce_update_order', array( $this, 'save_shipments_information' ), 10, 1 );
-
-		/*
-		*Hooks that render informational banner in standard checkout & cart pages
-		*/
-		add_action( 'woocommerce_review_order_before_payment', array( $this, 'revolut_pay_informational_banner_renderer' ) );
-		add_action( 'woocommerce_proceed_to_checkout', array( $this, 'revolut_pay_informational_banner_renderer' ) );
-
 	}
 
 	/**
@@ -405,9 +398,7 @@ abstract class WC_Payment_Gateway_Revolut extends WC_Payment_Gateway_CC {
 				'mode'                       => $this->get_mode(),
 				'orderToken'                 => $this->get_revolut_public_id(),
 				'publicToken'                => $this->get_merchant_public_api_key(),
-				'revolutPayIconVariant'      => $this->promotional_settings->revolut_pay_label_icon_variant(),
 				'gatewayUpsellBannerEnabled' => $this->promotional_settings->upsell_banner_enabled(),
-				'revPointsBannerEnabled'     => $this->promotional_settings->revpoints_banner_enabled(),
 				'amount'                     => $this->get_revolut_order_total( WC()->cart->get_total( '' ), get_woocommerce_currency() ),
 
 			);
@@ -1736,14 +1727,5 @@ abstract class WC_Payment_Gateway_Revolut extends WC_Payment_Gateway_CC {
 		$result->set_status( isset( $gateway_result['result'] ) && 'success' === $gateway_result['result'] ? 'success' : 'failure' );
 		$result->set_payment_details( array_merge( $result->payment_details, $gateway_result ) );
 		$result->set_redirect_url( $gateway_result['redirect'] );
-	}
-	/**
-	 * Render Revolut Pay informational banner element.
-	 */
-	public function revolut_pay_informational_banner_renderer() {
-		if ( ! $this->promotional_settings->revpoints_banner_enabled() ) {
-			return false;
-		}
-		echo wp_kses_post( '<div id="revolut-pay-informational-banner"></div>' );
 	}
 }

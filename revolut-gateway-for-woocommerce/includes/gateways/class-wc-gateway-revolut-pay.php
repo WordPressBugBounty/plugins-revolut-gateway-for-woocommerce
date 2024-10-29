@@ -49,7 +49,8 @@ class WC_Gateway_Revolut_Pay extends WC_Payment_Gateway_Revolut {
 		add_action( 'woocommerce_after_add_to_cart_quantity', array( $this, 'display_payment_request_button_html' ), 1 );
 		add_action( 'woocommerce_proceed_to_checkout', array( $this, 'display_payment_request_button_html' ), 1 );
 		add_action( 'wc_ajax_revolut_payment_request_load_order_data', array( $this, 'revolut_payment_request_ajax_load_order_data' ) );
-		add_filter( 'woocommerce_gateway_title', array( $this, 'custom_revolut_pay_label' ), 10, 2 );
+		add_action( 'woocommerce_review_order_before_payment', array( $this, 'revolut_pay_informational_banner_renderer' ) );
+		add_action( 'woocommerce_proceed_to_checkout', array( $this, 'revolut_pay_informational_banner_renderer' ) );
 	}
 
 	/**
@@ -274,6 +275,15 @@ class WC_Gateway_Revolut_Pay extends WC_Payment_Gateway_Revolut {
 			)
 		);
 
+		wp_localize_script(
+			'revolut-woocommerce',
+			'wc_revolut_pay_banner_data',
+			array(
+				'revPointsBannerEnabled' => $this->points_banner_available(),
+				'revolutPayIconVariant'  => $this->promotional_settings->revolut_pay_label_icon_variant(),
+			),
+		);
+
 		if ( 'yes' !== $this->enabled || ! $this->page_supports_payment_request_button( $this->get_option( 'revolut_pay_button_locations' ) ) || ! $this->is_shipping_required() ) {
 			return false;
 		}
@@ -409,7 +419,7 @@ class WC_Gateway_Revolut_Pay extends WC_Payment_Gateway_Revolut {
 	 * Display Revolut Pay icon
 	 */
 	public function get_icon() {
-		$icons_str = '<div class="revolut-pay-label-icons">';
+		$icons_str = '<span class="revolut-label-informational-icon" id="revolut-pay-label-informational-icon"></span>';
 
 		$available_card_brands = array();
 
@@ -419,6 +429,8 @@ class WC_Gateway_Revolut_Pay extends WC_Payment_Gateway_Revolut {
 			$total                 = $this->get_revolut_order_total( $total, $currency );
 			$available_card_brands = $this->get_available_card_brands( $total, $currency );
 		}
+
+		$icons_str .= '<div>';
 
 		if ( in_array( 'amex', $available_card_brands, true ) ) {
 			$icons_str .= '<img class="revolut-card-gateway-icon-amex" src="' . WC_REVOLUT_PLUGIN_URL . '/assets/images/amex.svg" style="margin-left:2px" alt="Amex" />';
@@ -463,5 +475,23 @@ class WC_Gateway_Revolut_Pay extends WC_Payment_Gateway_Revolut {
 
 		return '<div id="woocommerce-revolut-pay-element" class="revolut-pay ' . $revolut_pay_v2_class_indicator . '" data-redirect-url = "' . $mobile_redirect_url . '" data-mode="' . $mode . '" data-shipping-total="' . $shipping_total . '" data-currency="' . $currency . '" data-total="' . $total . '" data-textcolor="" data-locale="' . $this->get_lang_iso_code() . '" data-public-id="' . $public_id . '"  data-merchant-public-key="' . $merchant_public_key . '"></div>
 		<input type="hidden" id="wc_' . $this->id . '_payment_nonce" name="wc_' . $this->id . '_payment_nonce" />';
+	}
+
+	/**
+	 * Render Revolut Pay informational banner element.
+	 */
+	public function revolut_pay_informational_banner_renderer() {
+		if ( $this->points_banner_available() ) {
+			echo wp_kses_post( '<div id="revolut-pay-informational-banner"></div>' );
+		}
+	}
+
+	/**
+	 * Is points banner available.
+	 */
+	public function points_banner_available() {
+		return 'yes' === $this->enabled &&
+			$this->promotional_settings->revpoints_banner_enabled() &&
+			$this->page_supports_payment_request_button( $this->get_option( 'revolut_pay_button_locations' ) );
 	}
 }

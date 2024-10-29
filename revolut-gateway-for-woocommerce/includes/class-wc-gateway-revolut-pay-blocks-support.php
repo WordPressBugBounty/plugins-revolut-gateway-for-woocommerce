@@ -47,8 +47,7 @@ class WC_Gateway_Revolut_Pay_Blocks_Support extends Automattic\WooCommerce\Block
 	 * Initializes the payment gateway
 	 */
 	public function initialize() {
-		$this->settings          = get_option( 'woocommerce_revolut_pay_settings', array() );
-		$this->settings['title'] = wp_kses_post( $this->gateway->custom_revolut_pay_label( $this->gateway->title, $this->gateway->id ) );
+		$this->settings = get_option( 'woocommerce_revolut_pay_settings', array() );
 	}
 
 	/**

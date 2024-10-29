@@ -550,10 +550,11 @@ class WC_Gateway_Revolut_Payment_Request extends WC_Payment_Gateway_Revolut {
 	 * Display Revolut Pay icon
 	 */
 	public function get_icon() {
-		$icons_str = '';
-
+		$icons_str  = '<span class="revolut-label-informational-icon"></span>';
+		$icons_str .= '<div>';
 		$icons_str .= '<img src="' . WC_REVOLUT_PLUGIN_URL . '/assets/images/apple-pay-logo.svg" class="revolut-apple-pay-logo" style="max-width:50px;display:none" alt="Apple Pay" />';
 		$icons_str .= '<img src="' . WC_REVOLUT_PLUGIN_URL . '/assets/images/g-pay-logo.png" class="revolut-google-pay-logo" style="max-width:50px;display:none" alt="Google Pay" />';
+		$icons_str .= '</div>';
 
 		return apply_filters( 'woocommerce_gateway_icon', $icons_str, $this->id );
 	}
