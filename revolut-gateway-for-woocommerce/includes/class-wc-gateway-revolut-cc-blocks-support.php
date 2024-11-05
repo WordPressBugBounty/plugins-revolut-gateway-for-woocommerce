@@ -96,7 +96,7 @@ class WC_Gateway_Revolut_CC_Blocks_Support extends Automattic\WooCommerce\Blocks
 				array(
 					'payment_method_name'                => $this->name,
 					'locale'                             => $this->gateway->get_lang_iso_code(),
-					'can_make_payment'                   => $this->gateway->is_available(),
+					'can_make_payment'                   => $this->is_active(),
 					'wc_revolut_plugin_url'              => WC_REVOLUT_PLUGIN_URL,
 					'available_card_brands'              => $this->gateway->get_available_card_brands( $order_descriptor->amount, $order_descriptor->currency ),
 					'order_total_amount'                 => $order_descriptor->amount,

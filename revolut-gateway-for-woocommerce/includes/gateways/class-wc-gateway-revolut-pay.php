@@ -39,15 +39,11 @@ class WC_Gateway_Revolut_Pay extends WC_Payment_Gateway_Revolut {
 
 		$this->activate_default_express_checkout();
 
-		if ( ! $this->is_revolut_cc_gateway_active() ) {
-			$this->init_scripts();
-		}
-
 		add_action( 'wp', array( $this, 'check_revolut_pay_payment_result' ) );
 		add_filter( 'wc_revolut_settings_nav_tabs', array( $this, 'admin_nav_tab' ), 3 );
 		add_action( 'wp_enqueue_scripts', array( $this, 'wc_revolut_pay_enqueue_scripts' ) );
-		add_action( 'woocommerce_after_add_to_cart_quantity', array( $this, 'display_payment_request_button_html' ), 1 );
-		add_action( 'woocommerce_proceed_to_checkout', array( $this, 'display_payment_request_button_html' ), 1 );
+		add_action( 'woocommerce_after_add_to_cart_quantity', array( $this, 'display_revolut_pay_button' ), 1 );
+		add_action( 'woocommerce_proceed_to_checkout', array( $this, 'display_revolut_pay_button' ), 1 );
 		add_action( 'wc_ajax_revolut_payment_request_load_order_data', array( $this, 'revolut_payment_request_ajax_load_order_data' ) );
 		add_action( 'woocommerce_review_order_before_payment', array( $this, 'revolut_pay_informational_banner_renderer' ) );
 		add_action( 'woocommerce_proceed_to_checkout', array( $this, 'revolut_pay_informational_banner_renderer' ) );
@@ -164,7 +160,7 @@ class WC_Gateway_Revolut_Pay extends WC_Payment_Gateway_Revolut {
 	 */
 	public function activate_default_express_checkout() {
 		try {
-			if ( 'yes' !== $this->get_option( 'revolut_pay_express_checkout_activate_default' ) && 'yes' === $this->get_option( 'enabled' ) && empty( $this->get_option( 'revolut_pay_button_locations' ) ) && $this->is_revolut_payment_request_gateway_active() ) {
+			if ( 'yes' !== $this->get_option( 'revolut_pay_express_checkout_activate_default' ) && 'yes' === $this->get_option( 'enabled' ) && empty( $this->get_option( 'revolut_pay_button_locations' ) ) && $this->is_revolut_payment_request_fast_checkout_active() ) {
 				$this->update_option( 'revolut_pay_button_locations', array( 'product', 'cart' ) );
 			}
 			$this->update_option( 'revolut_pay_express_checkout_activate_default', 'yes' );
@@ -239,19 +235,18 @@ class WC_Gateway_Revolut_Pay extends WC_Payment_Gateway_Revolut {
 	/**
 	 * Display payment request button html
 	 */
-	public function display_payment_request_button_html() {
-		if ( 'yes' !== $this->enabled || ! $this->page_supports_payment_request_button( $this->get_option( 'revolut_pay_button_locations' ) ) || ! $this->is_shipping_required() ) {
+	public function display_revolut_pay_button() {
+		if ( ! $this->page_supported() ) {
 			return false;
 		}
 
 		?>
-		<div class="wc-revolut-pay-express-checkout-instance" id="wc-revolut-pay-express-checkout-container" style="clear:both;padding-top:1.5em;">
-			<?php if ( $this->promotional_settings->revpoints_banner_enabled() ) : ?>
-				<div id="revolut-pay-informational-banner"></div>
-			<?php endif; ?>
-
+		<?php if ( $this->promotional_settings->revpoints_banner_enabled() ) : ?>
+			<div id="revolut-pay-informational-banner"></div>
+		<?php endif; ?>
+		<div class="wc-revolut-pay-express-checkout-instance" id="wc-revolut-pay-express-checkout-container" style="clear:both;padding-top:1.5em">
 			<div id="revolut-pay-express-checkout-button"></div>
-			<?php if ( ! $this->is_revolut_payment_request_gateway_active() ) : ?>
+			<?php if ( ! $this->is_revolut_payment_request_fast_checkout_active() ) : ?>
 				<p id="wc-revolut-pay-express-checkout-button-separator" style="text-align:center;margin-bottom:1.5em;">
 					&mdash;&nbsp;<?php echo esc_html( __( 'OR', 'revolut-gateway-for-woocommerce' ) ); ?>&nbsp;&mdash;
 				</p>
@@ -264,8 +259,12 @@ class WC_Gateway_Revolut_Pay extends WC_Payment_Gateway_Revolut {
 	 * Add script to load card form
 	 */
 	public function wc_revolut_pay_enqueue_scripts() {
+		if ( ! $this->page_supported() ) {
+			return;
+		}
+
 		wp_localize_script(
-			'revolut-woocommerce',
+			$this->blocks_loaded() ? 'wc-revolut-blocks-integration' : 'revolut-woocommerce',
 			'revolut_pay_button_style',
 			array(
 				'revolut_pay_button_theme'  => $this->get_option( 'revolut_pay_button_theme' ),
@@ -276,7 +275,7 @@ class WC_Gateway_Revolut_Pay extends WC_Payment_Gateway_Revolut {
 		);
 
 		wp_localize_script(
-			'revolut-woocommerce',
+			$this->blocks_loaded() ? 'wc-revolut-blocks-integration' : 'revolut-woocommerce',
 			'wc_revolut_pay_banner_data',
 			array(
 				'revPointsBannerEnabled' => $this->points_banner_available(),
@@ -284,21 +283,31 @@ class WC_Gateway_Revolut_Pay extends WC_Payment_Gateway_Revolut {
 			),
 		);
 
-		if ( 'yes' !== $this->enabled || ! $this->page_supports_payment_request_button( $this->get_option( 'revolut_pay_button_locations' ) ) || ! $this->is_shipping_required() ) {
-			return false;
+		if ( is_checkout() ) {
+			return;
 		}
 
-		wp_register_script( 'revolut-core', $this->api_client->base_url . '/embed.js', false, WC_GATEWAY_REVOLUT_VERSION, true );
-			wp_register_script(
-				'revolut-woocommerce-payment-request',
-				plugins_url( 'assets/js/revolut-payment-request.js', WC_REVOLUT_MAIN_FILE ),
-				array(
-					'revolut-core',
-					'jquery',
-				),
-				WC_GATEWAY_REVOLUT_VERSION,
-				true
+		wp_enqueue_script( 'revolut-core', $this->api_client->base_url . '/embed.js', false, WC_GATEWAY_REVOLUT_VERSION, true );
+
+		if ( $this->blocks_loaded() ) {
+			wp_localize_script(
+				'wc-revolut-blocks-integration',
+				'wc_revolut_payment_request_params',
+				$this->get_wc_revolut_payment_request_params()
 			);
+			return;
+		}
+
+		wp_enqueue_script(
+			'revolut-woocommerce-payment-request',
+			plugins_url( 'assets/js/revolut-payment-request.js', WC_REVOLUT_MAIN_FILE ),
+			array(
+				'revolut-core',
+				'jquery',
+			),
+			WC_GATEWAY_REVOLUT_VERSION,
+			true
+		);
 
 		wp_localize_script(
 			'revolut-woocommerce-payment-request',
@@ -306,7 +315,6 @@ class WC_Gateway_Revolut_Pay extends WC_Payment_Gateway_Revolut {
 			$this->get_wc_revolut_payment_request_params()
 		);
 
-		wp_enqueue_script( 'revolut-woocommerce-payment-request' );
 	}
 
 	/**
@@ -320,9 +328,23 @@ class WC_Gateway_Revolut_Pay extends WC_Payment_Gateway_Revolut {
 	/**
 	 * Check if the request payments active.
 	 */
-	public function is_revolut_payment_request_gateway_active() {
+	public function is_revolut_payment_request_fast_checkout_active() {
 		$woocommerce_revolut_payment_request_settings = get_option( 'woocommerce_revolut_payment_request_settings' );
-		return isset( $woocommerce_revolut_payment_request_settings['enabled'] ) && 'yes' === $woocommerce_revolut_payment_request_settings['enabled'] && $this->api_settings->get_option( 'mode' ) !== 'sandbox';
+
+		if ( ! isset( $woocommerce_revolut_payment_request_settings['enabled'] ) ) {
+			return false;
+		}
+
+		if ( ! isset( $woocommerce_revolut_payment_request_settings['payment_request_button_locations'] ) ) {
+			return false;
+		}
+
+		if ( $this->api_settings->get_option( 'mode' ) === 'sandbox' ) {
+			return false;
+		}
+
+		return 'yes' === $woocommerce_revolut_payment_request_settings['enabled'] && $this->page_supports_payment_request_button( $woocommerce_revolut_payment_request_settings['payment_request_button_locations'] );
+
 	}
 
 	/**
@@ -490,8 +512,17 @@ class WC_Gateway_Revolut_Pay extends WC_Payment_Gateway_Revolut {
 	 * Is points banner available.
 	 */
 	public function points_banner_available() {
-		return 'yes' === $this->enabled &&
-			$this->promotional_settings->revpoints_banner_enabled() &&
-			$this->page_supports_payment_request_button( $this->get_option( 'revolut_pay_button_locations' ) );
+		return $this->page_supported() && $this->promotional_settings->revpoints_banner_enabled();
+	}
+
+	/**
+	 * Returns wether payment method is supported in the current page or not
+	 */
+	public function page_supported() {
+
+		if ( is_checkout() ) {
+			return $this->is_available();
+		}
+		return $this->is_available() && $this->page_supports_payment_request_button( $this->get_option( 'revolut_pay_button_locations' ) );
 	}
 }

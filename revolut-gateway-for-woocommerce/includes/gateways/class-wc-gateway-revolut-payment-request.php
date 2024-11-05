@@ -58,6 +58,10 @@ class WC_Gateway_Revolut_Payment_Request extends WC_Payment_Gateway_Revolut {
 	 */
 	public function revolut_enqueue_payment_request_scripts() {
 		try {
+			if ( ! $this->page_supported() ) {
+				return;
+			}
+
 			wp_localize_script(
 				'revolut-woocommerce',
 				'revolut_payment_request_button_style',
@@ -70,12 +74,22 @@ class WC_Gateway_Revolut_Payment_Request extends WC_Payment_Gateway_Revolut {
 				)
 			);
 
-			if ( ! $this->page_supports_payment_request_button( $this->get_option( 'payment_request_button_locations' ) ) ) {
-				return false;
+			if ( is_checkout() ) {
+				return;
 			}
 
-			wp_register_script( 'revolut-core', $this->api_client->base_url . '/embed.js', false, WC_GATEWAY_REVOLUT_VERSION, true );
-			wp_register_script(
+			wp_enqueue_script( 'revolut-core', $this->api_client->base_url . '/embed.js', false, WC_GATEWAY_REVOLUT_VERSION, true );
+
+			if ( $this->blocks_loaded() ) {
+				wp_localize_script(
+					'wc-revolut-blocks-integration',
+					'wc_revolut_payment_request_params',
+					$this->get_wc_revolut_payment_request_params()
+				);
+				return;
+			}
+
+			wp_enqueue_script(
 				'revolut-woocommerce-payment-request',
 				plugins_url( 'assets/js/revolut-payment-request.js', WC_REVOLUT_MAIN_FILE ),
 				array(
@@ -92,7 +106,6 @@ class WC_Gateway_Revolut_Payment_Request extends WC_Payment_Gateway_Revolut {
 				$this->get_wc_revolut_payment_request_params()
 			);
 
-			wp_enqueue_script( 'revolut-woocommerce-payment-request' );
 		} catch ( Exception $e ) {
 			$this->log_error( $e->getMessage() );
 		}
@@ -102,8 +115,17 @@ class WC_Gateway_Revolut_Payment_Request extends WC_Payment_Gateway_Revolut {
 	 * Check if the Revolut Pay Fast checkout payments active.
 	 */
 	public function is_revolut_pay_fast_checkout_active() {
-		$revolut_cc_gateway_options = get_option( 'woocommerce_revolut_pay_settings' );
-		return isset( $revolut_cc_gateway_options['revolut_pay_button_locations'] ) && $this->page_supports_payment_request_button( $revolut_cc_gateway_options['revolut_pay_button_locations'] ) && $this->is_shipping_required();
+		$woocommerce_revolut_pay_settings = get_option( 'woocommerce_revolut_pay_settings' );
+
+		if ( ! isset( $woocommerce_revolut_pay_settings['revolut_pay_button_locations'] ) ) {
+			return false;
+		}
+
+		if ( ! isset( $woocommerce_revolut_pay_settings['enabled'] ) ) {
+			return false;
+		}
+
+		return $woocommerce_revolut_pay_settings['enabled'] && $this->page_supports_payment_request_button( $woocommerce_revolut_pay_settings['revolut_pay_button_locations'] );
 	}
 
 	/**
@@ -156,6 +178,7 @@ class WC_Gateway_Revolut_Payment_Request extends WC_Payment_Gateway_Revolut {
 		}
 
 		return 'yes' === $this->enabled;
+
 	}
 
 	/**
@@ -243,9 +266,8 @@ class WC_Gateway_Revolut_Payment_Request extends WC_Payment_Gateway_Revolut {
 				'desc_tip'          => true,
 				'class'             => 'wc-enhanced-select',
 				'options'           => array(
-					'product'  => __( 'Product', 'revolut-gateway-for-woocommerce' ),
-					'cart'     => __( 'Cart', 'revolut-gateway-for-woocommerce' ),
-					'checkout' => __( 'Checkout', 'revolut-gateway-for-woocommerce' ),
+					'product' => __( 'Product', 'revolut-gateway-for-woocommerce' ),
+					'cart'    => __( 'Cart', 'revolut-gateway-for-woocommerce' ),
 				),
 				'default'           => array( 'product', 'cart' ),
 				'custom_attributes' => array(
@@ -277,7 +299,7 @@ class WC_Gateway_Revolut_Payment_Request extends WC_Payment_Gateway_Revolut {
 	 * Display payment request button html
 	 */
 	public function display_payment_request_button_html() {
-		if ( ! $this->page_supports_payment_request_button( $this->get_option( 'payment_request_button_locations' ) ) || ! $this->is_shipping_required() ) {
+		if ( ! $this->page_supported() ) {
 			return false;
 		}
 
@@ -598,4 +620,15 @@ class WC_Gateway_Revolut_Payment_Request extends WC_Payment_Gateway_Revolut {
 		return $fields;
 	}
 
+	/**
+	 * Returns wether payment method is supported in the current page or not
+	 */
+	public function page_supported() {
+
+		if ( is_checkout() ) {
+			return $this->is_available();
+		}
+
+		return $this->is_available() && $this->page_supports_payment_request_button( $this->get_option( 'payment_request_button_locations' ) );
+	}
 }

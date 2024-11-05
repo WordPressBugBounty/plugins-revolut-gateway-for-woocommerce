@@ -33,8 +33,6 @@ jQuery(function ($) {
     $('#woocommerce-revolut-payment-request-element').length > 0
   let reload_checkout = 0
   const revolut_pay_v2 = $('.revolut-pay-v2').length > 0
-  const blocksLoaded =
-    typeof wc !== 'undefined' && wc.wcBlocksRegistry?.getRegisteredInnerBlocks()
   let revolutIconMounted = false
   let gatewayBannerMounted = false
   
@@ -487,6 +485,12 @@ jQuery(function ($) {
       })
 
       let address = getCheckoutFormData()
+      const {
+        revolut_pay_button_theme,
+        revolut_pay_button_size,
+        revolut_pay_button_radius,
+        revolut_pay_origin_url,
+      } = typeof revolut_pay_button_style !== 'undefined' ? revolut_pay_button_style : {}
 
       const paymentOptions = {
         currency: currentPaymentMethod.currency,
@@ -504,9 +508,9 @@ jQuery(function ($) {
         ],
         buttonStyle: {
           cashbackCurrency: currentPaymentMethod.currency,
-          variant: revolut_pay_button_style.revolut_pay_button_theme,
-          size: revolut_pay_button_style.revolut_pay_button_size,
-          radius: revolut_pay_button_style.revolut_pay_button_radius,
+          variant: revolut_pay_button_theme,
+          size: revolut_pay_button_size,
+          radius: revolut_pay_button_radius,
         },
         customer: {
           name: address.billing_first_name,
@@ -521,7 +525,7 @@ jQuery(function ($) {
         __metadata: {
           environment: 'woocommerce',
           context: 'checkout',
-          origin_url: revolut_pay_button_style.revolut_pay_origin_url,
+          origin_url: revolut_pay_origin_url,
         },
       }
 
@@ -552,9 +556,9 @@ jQuery(function ($) {
         onError: handleError,
         onSuccess: handlePaymentResult,
         buttonStyle: {
-          variant: revolut_pay_button_style.revolut_pay_button_theme,
-          size: revolut_pay_button_style.revolut_pay_button_size,
-          radius: revolut_pay_button_style.revolut_pay_button_radius,
+          variant: revolut_pay_button_theme,
+          size: revolut_pay_button_size,
+          radius: revolut_pay_button_radius,
         },
       })
     } else if (currentPaymentMethod.methodId === PAYMENT_METHOD.RevolutPaymentRequest) {
@@ -566,7 +570,15 @@ jQuery(function ($) {
     $('#woocommerce-revolut-payment-request-element').empty()
 
     instance = RevolutCheckout(publicId)
-
+    const {
+      payment_request_button_type,
+      payment_request_button_size,
+      payment_request_button_radius,
+      payment_request_button_theme,
+    } =
+      typeof revolut_payment_request_button_style !== 'undefined'
+        ? revolut_payment_request_button_style
+        : {}
     paymentRequest = instance.paymentRequest({
       target: target,
       requestShipping: false,
@@ -601,10 +613,10 @@ jQuery(function ($) {
         handleError([errorMsg].filter(Boolean))
       },
       buttonStyle: {
-        action: revolut_payment_request_button_style.payment_request_button_type,
-        size: revolut_payment_request_button_style.payment_request_button_size,
-        variant: revolut_payment_request_button_style.payment_request_button_theme,
-        radius: revolut_payment_request_button_style.payment_request_button_radius,
+        action: payment_request_button_type,
+        size: payment_request_button_size,
+        variant: payment_request_button_theme,
+        radius: payment_request_button_radius,
       },
     })
 
@@ -621,8 +633,17 @@ jQuery(function ($) {
   }
 
   function adjustPaymentRequestButtonNameAndTitle(paymentRequestType) {
-    let methodName = paymentRequestType == 'googlePay' ? 'Google Pay' : 'Apple Pay'
-    methodName += ' ' + revolut_payment_request_button_style.payment_request_button_title
+    const { payment_request_button_title } =
+      typeof revolut_payment_request_button_style !== 'undefined'
+        ? revolut_payment_request_button_style
+        : {}
+
+    let methodName =
+      (paymentRequestType === 'googlePay' ? 'Google Pay' : 'Apple Pay') +
+      (payment_request_button_title !== undefined
+        ? ' ' + payment_request_button_title
+        : '')
+
     paymentRequestType == 'googlePay'
       ? $('.revolut-google-pay-logo').show()
       : $('.revolut-apple-pay-logo').show()
@@ -652,6 +673,8 @@ jQuery(function ($) {
         paymentData.billingAddress = billingInfo.billingAddress
       }
     }
+    const { gatewayUpsellBannerEnabled } =
+      typeof wc_revolut !== 'undefined' ? wc_revolut.informational_banner_data : {}
 
     instance = RevolutCheckout(currentPaymentMethod.publicId).payWithPopup({
       ...{
@@ -659,6 +682,7 @@ jQuery(function ($) {
         onCancel: handleCancel,
         onError: handleError,
         onSuccess: handlePaymentResult,
+        upsellBanner: gatewayUpsellBannerEnabled,
       },
       ...paymentData,
     })
@@ -1175,8 +1199,7 @@ jQuery(function ($) {
   }
 
   const mountRevPointsBanner = () => {
-
-    if(typeof wc_revolut_pay_banner_data === 'undefined' ) {
+    if (typeof wc_revolut_pay_banner_data === 'undefined') {
       return
     }
 
@@ -1194,13 +1217,15 @@ jQuery(function ($) {
   }
 
   const mountRevolutPayIcon = () => {
-
-    if(typeof wc_revolut === 'undefined' || typeof wc_revolut_pay_banner_data === 'undefined' ) {
+    if (
+      typeof wc_revolut === 'undefined' ||
+      typeof wc_revolut_pay_banner_data === 'undefined'
+    ) {
       return
     }
 
-    const {amount, currency } = wc_revolut.informational_banner_data
-    const { revolutPayIconVariant } =  wc_revolut_pay_banner_data
+    const { amount, currency } = wc_revolut.informational_banner_data
+    const { revolutPayIconVariant } = wc_revolut_pay_banner_data
 
     const target = document.getElementById('revolut-pay-label-informational-icon')
     if (!target || !revolutPayIconVariant) return
@@ -1269,7 +1294,7 @@ jQuery(function ($) {
     }
   }
 
-  if (RevolutUpsellInstance && !blocksLoaded) {
+  if (RevolutUpsellInstance) {
     mountRevPointsBanner()
     mountOrderConfirmationBanner()
   }

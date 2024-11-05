@@ -413,11 +413,19 @@ trait WC_Gateway_Revolut_Express_Checkout_Helper_Trait {
 			return false;
 		}
 
+		if ( is_checkout() && ! in_array( 'checkout', $payment_request_button_locations, true ) ) {
+			return false;
+		}
+
 		if ( $this->is_subscription_product() ) {
 			return false;
 		}
 
 		if ( ! $this->check_order_creation_possible() ) {
+			return false;
+		}
+
+		if ( ( is_cart() || is_product() ) && ! $this->is_shipping_required() ) {
 			return false;
 		}
 

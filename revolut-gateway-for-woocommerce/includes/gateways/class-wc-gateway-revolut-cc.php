@@ -44,10 +44,10 @@ class WC_Gateway_Revolut_CC extends WC_Payment_Gateway_Revolut {
 			$this->add_default_options();
 		}
 
-		$this->init_scripts();
-
 		$this->revolut_saved_cards = 'yes' === $this->get_option( 'revolut_saved_cards' );
-
+		if ( $this->revolut_saved_cards ) {
+			$this->supports = array_merge( $this->supports, array( 'tokenization', 'add_payment_method' ) );
+		}
 		add_action( 'wp_enqueue_scripts', array( $this, 'load_payment_scripts' ) );
 		add_filter( 'wc_revolut_settings_nav_tabs', array( $this, 'admin_nav_tab' ), 4 );
 
@@ -570,7 +570,7 @@ class WC_Gateway_Revolut_CC extends WC_Payment_Gateway_Revolut {
 		$shipping_total      = $this->get_cart_total_shipping();
 		$hide_payment_method = ! empty( $hide_fieldset ) && ! $display_tokenization ? true : false;
 
-		$display_banner = $this->promotional_settings->upsell_banner_enabled() ? '<div id="revolut-upsell-banner"></div>' : '';
+		$display_banner = $this->get_option( 'card_widget_type' ) !== 'popup' && $this->promotional_settings->upsell_banner_enabled() ? '<div id="revolut-upsell-banner"></div>' : '';
 
 		$cardholder_name_field = '';
 
@@ -606,10 +606,6 @@ class WC_Gateway_Revolut_CC extends WC_Payment_Gateway_Revolut {
 	 */
 	public function is_available() {
 		if ( ! $this->check_currency_support() || ! $this->is_payment_method_available( 'card' ) ) {
-			return false;
-		}
-
-		if ( is_add_payment_method_page() && ! $this->revolut_saved_cards ) {
 			return false;
 		}
 
@@ -694,5 +690,15 @@ class WC_Gateway_Revolut_CC extends WC_Payment_Gateway_Revolut {
                     <path d="M44.3326 14.061L46.8796 7.491V7.401H46.0875L44.7375 11.01H44.7015L43.3065 7.401H42.4965V7.491L44.3415 11.946L44.3505 11.964L43.5676 13.971V14.061H44.3326Z" />
                     <path fill-rule="evenodd" clip-rule="evenodd" d="M59.0134 13.0369L56.793 9.12191C58.1976 8.60604 58.8939 7.70677 58.8939 6.39711C58.8954 4.79652 57.6336 3.77778 55.6244 3.77778H51.6981V13.0369H53.4318V9.28037H54.9032L57.0304 13.0369H59.0134ZM55.6244 5.31189C56.6488 5.31189 57.1613 5.72178 57.1613 6.52858C57.1613 7.33537 56.6483 7.74526 55.6244 7.74526H53.4318V5.31189H55.6244ZM82.044 13.0371V3.9604H80.3892V13.0371H82.044ZM78.5549 7.06465C77.8585 6.44281 77.018 6.13889 76.0461 6.13889C75.0876 6.13889 74.247 6.44331 73.5502 7.06465C72.8538 7.673 72.5 8.51977 72.5 9.60449C72.5 10.6892 72.8538 11.5355 73.5502 12.1574C74.2465 12.7657 75.0876 13.0701 76.0461 13.0701C77.018 13.0701 77.8585 12.7657 78.5549 12.1574C79.2646 11.5355 79.6185 10.6892 79.6185 9.60449C79.6185 8.51977 79.2641 7.673 78.5549 7.06465ZM74.7332 10.9931C74.366 10.6362 74.1811 10.1729 74.1811 9.60449C74.1811 9.03565 74.3645 8.57276 74.7332 8.22885C75.1005 7.87195 75.5346 7.69998 76.0456 7.69998C76.557 7.69998 77.0041 7.87195 77.3719 8.22885C77.752 8.57276 77.9368 9.03565 77.9368 9.60449C77.9368 10.1733 77.7535 10.6362 77.3719 10.9931C77.0046 11.3371 76.5576 11.509 76.0456 11.509C75.5346 11.509 75.1015 11.3371 74.7332 10.9931ZM87.3855 10.0976V6.47599H89.0443V10.3755C89.0443 11.8566 88.1001 13.2218 86.0384 13.2218H86.0255C83.9509 13.2218 83.0052 11.8861 83.0052 10.3755V6.47599H84.6631V10.0976C84.6631 10.9708 85.1191 11.5487 86.0255 11.5487C86.9172 11.5487 87.3855 10.9703 87.3855 10.0976ZM70.6804 6.47599L69.0255 10.9204L67.3707 6.47599H65.6107L68.2514 13.0368H69.8017L72.4418 6.47599H70.6804ZM64.7265 7.2166C65.3177 7.83844 65.6196 8.61874 65.6196 9.571H65.6191V10.1533H60.603C60.708 11.1586 61.4044 11.7934 62.3891 11.7934C63.1901 11.7934 63.7818 11.3965 64.1883 10.5897L65.4223 11.3041C64.8063 12.5872 63.7952 13.2221 62.3629 13.2221C61.4306 13.2221 60.6426 12.9046 59.9855 12.2563C59.3417 11.6085 59.0135 10.7752 59.0135 9.75644C59.0135 8.73771 59.3411 7.91792 59.9984 7.26959C60.6684 6.62175 61.4832 6.29084 62.4417 6.29084C63.3745 6.29084 64.1352 6.59476 64.7265 7.2166ZM64.0956 8.93616C63.9385 8.08937 63.3204 7.56051 62.3882 7.56051C61.5342 7.56051 60.8522 8.15586 60.602 8.93616H64.0956ZM89.9207 11.2769C89.9207 12.3511 90.7845 13.2214 91.8496 13.2214H92.9945V11.7398H92.142C91.8288 11.7398 91.5755 11.4848 91.5755 11.1699V7.82728H92.9945V6.47813H91.5755V4.70308H89.9207V11.2769Z" />
                 </svg>';
+	}
+
+	/**
+	 * Returns wether payment method is supported in the current page or not
+	 */
+	public function page_supported() {
+		if ( is_checkout() || is_add_payment_method_page() ) {
+			return $this->is_available();
+		}
+		return false;
 	}
 }

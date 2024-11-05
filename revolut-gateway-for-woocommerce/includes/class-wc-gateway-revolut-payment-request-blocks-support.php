@@ -55,20 +55,12 @@ class WC_Gateway_Revolut_Payment_Request_Blocks_Support extends Automattic\WooCo
 	 * Fetches gateway status
 	 */
 	public function is_active() {
-		if ( ! $this->gateway->is_available() ) {
+		try {
+			return $this->gateway->page_supported();
+		} catch ( Exception $e ) {
+			$this->gateway->log_error( 'revolut-prb-block-is_active : ' . $e->getMessage() );
 			return false;
 		}
-
-		$payment_method_locations = $this->gateway->get_option( 'payment_request_button_locations', array() );
-
-		if ( is_cart() && in_array( 'cart', $payment_method_locations, true ) ) {
-			return $this->gateway->is_shipping_required();
-		}
-
-		if ( is_checkout() && in_array( 'checkout', $payment_method_locations, true ) ) {
-			return true;
-		}
-		return false;
 	}
 
 	/**

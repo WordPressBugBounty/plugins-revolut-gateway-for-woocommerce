@@ -99,6 +99,7 @@ abstract class WC_Payment_Gateway_Revolut extends WC_Payment_Gateway_CC {
 		add_action( 'add_option_woocommerce_revolut_settings', array( $this, 'request_available_payment_methods_and_brand_logos' ) );
 		add_action( 'update_option_woocommerce_revolut_settings', array( $this, 'request_available_payment_methods_and_brand_logos' ) );
 		add_action( 'woocommerce_update_order', array( $this, 'save_shipments_information' ), 10, 1 );
+		add_action( 'wp_enqueue_scripts', array( $this, 'wc_revolut_enqueue_scripts' ) );
 	}
 
 	/**
@@ -164,13 +165,6 @@ abstract class WC_Payment_Gateway_Revolut extends WC_Payment_Gateway_CC {
 		} catch ( Exception $e ) {
 			$this->log_error( 'save_shipments_information error : ' . $e->getMessage() );
 		}
-	}
-
-	/**
-	 * Init required js and css assets
-	 */
-	protected function init_scripts() {
-		add_action( 'wp_enqueue_scripts', array( $this, 'wc_revolut_enqueue_scripts' ) );
 	}
 
 	/**
@@ -410,30 +404,24 @@ abstract class WC_Payment_Gateway_Revolut extends WC_Payment_Gateway_CC {
 		return array();
 	}
 	/**
-	 * Add script to load card form
+	 * Enqueue frontend assets
 	 */
 	public function wc_revolut_enqueue_scripts() {
-		wp_register_style( 'revolut-custom-style', plugins_url( 'assets/css/style.css', WC_REVOLUT_MAIN_FILE ), array(), WC_GATEWAY_REVOLUT_VERSION );
-		wp_enqueue_style( 'revolut-custom-style' );
+		if ( ! $this->page_supported() ) {
+			return;
+		}
 
-		wp_enqueue_script( 'revolut-core', $this->api_client->base_url . '/embed.js', false, WC_GATEWAY_REVOLUT_VERSION, true );
-		wp_enqueue_script( 'revolut-upsell', $this->api_client->base_url . '/upsell/embed.js', false, WC_GATEWAY_REVOLUT_VERSION, true );
+		$dependencies = array( 'revolut-upsell', 'jquery' );
+		wp_enqueue_style( 'revolut-custom-style', plugins_url( 'assets/css/style.css', WC_REVOLUT_MAIN_FILE ), array(), WC_GATEWAY_REVOLUT_VERSION );
+		wp_enqueue_script( 'revolut-upsell', $this->api_client->base_url . '/upsell/embed.js', array(), WC_GATEWAY_REVOLUT_VERSION, true );
+		wp_enqueue_script( 'revolut-core', $this->api_client->base_url . '/embed.js', $dependencies, WC_GATEWAY_REVOLUT_VERSION, true );
 
-		wp_enqueue_script( 'jquery' );
-		wp_enqueue_script(
-			'revolut-woocommerce',
-			plugins_url( 'assets/js/revolut.js', WC_REVOLUT_MAIN_FILE ),
-			array(
-				'revolut-core',
-				'revolut-upsell',
-				'jquery',
-			),
-			WC_GATEWAY_REVOLUT_VERSION,
-			true
-		);
+		if ( ! $this->blocks_loaded() ) {
+			wp_enqueue_script( 'revolut-woocommerce', plugins_url( 'assets/js/revolut.js', WC_REVOLUT_MAIN_FILE ), $dependencies, WC_GATEWAY_REVOLUT_VERSION, true );
+		}
 
 		wp_localize_script(
-			'revolut-woocommerce',
+			$this->blocks_loaded() ? 'wc-revolut-blocks-integration' : 'revolut-woocommerce',
 			'wc_revolut',
 			array(
 				'ajax_url'                  => WC_AJAX::get_endpoint( '%%wc_revolut_gateway_ajax_endpoint%%' ),
@@ -1727,5 +1715,30 @@ abstract class WC_Payment_Gateway_Revolut extends WC_Payment_Gateway_CC {
 		$result->set_status( isset( $gateway_result['result'] ) && 'success' === $gateway_result['result'] ? 'success' : 'failure' );
 		$result->set_payment_details( array_merge( $result->payment_details, $gateway_result ) );
 		$result->set_redirect_url( $gateway_result['redirect'] );
+	}
+
+	/**
+	 * Checks if checkout / cart blocks are being used.
+	 */
+	public function blocks_loaded() {
+
+		if ( ! class_exists( 'Automattic\\WooCommerce\\Blocks\\Package' ) || ! function_exists( 'has_block' ) ) {
+			return false;
+		}
+
+		if ( is_cart() ) {
+			return has_block( 'woocommerce/cart', wc_get_page_id( 'cart' ) );
+		}
+
+		if ( is_checkout() ) {
+			global $wp;
+			if ( ! empty( $wp->query_vars['order-pay'] ) ) {
+				return false;
+			}
+
+			return has_block( 'woocommerce/checkout', wc_get_page_id( 'checkout' ) );
+		}
+
+		return false;
 	}
 }
