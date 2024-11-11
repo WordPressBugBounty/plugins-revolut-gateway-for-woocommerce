@@ -459,7 +459,8 @@ class WC_Gateway_Revolut_CC extends WC_Payment_Gateway_Revolut {
 			return $payment_method_to_display;
 		}
 
-		$revolut_payment_token_id  = get_post_meta( $subscription->get_id(), '_payment_token_id', true );
+		$revolut_payment_token_id = $subscription->get_meta( '_payment_token_id', true );
+
 		$payment_method_to_display = __( 'N/A', 'revolut-gateway-for-woocommerce' );
 		$wc_token                  = WC_Payment_Tokens::get( $revolut_payment_token_id );
 

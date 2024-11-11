@@ -459,7 +459,9 @@ jQuery(function ($) {
           onValidation: handleValidation,
           onStatusChange: handleStatusChange,
           onError: handleError,
-          onSuccess: handlePaymentResult,
+          onSuccess: () => {
+            handlePaymentResult()
+          },
           styles: {
             default: {
               color: currentPaymentMethod.textcolor,
@@ -554,7 +556,9 @@ jQuery(function ($) {
         validate: validateWooCommerceCheckout,
         onCancel: handleCancel,
         onError: handleError,
-        onSuccess: handlePaymentResult,
+        onSuccess: () => {
+          handlePaymentResult()
+        },
         buttonStyle: {
           variant: revolut_pay_button_theme,
           size: revolut_pay_button_size,
@@ -590,7 +594,9 @@ jQuery(function ($) {
           }
         })
       },
-      onSuccess: handlePaymentResult,
+      onSuccess: () => {
+        handlePaymentResult()
+      },
       validate() {
         return new Promise((resolve, reject) => {
           validateWooCommerceCheckout().then(function (valid) {
@@ -681,7 +687,9 @@ jQuery(function ($) {
         locale: currentPaymentMethod.locale,
         onCancel: handleCancel,
         onError: handleError,
-        onSuccess: handlePaymentResult,
+        onSuccess: () => {
+          handlePaymentResult()
+        },
         upsellBanner: gatewayUpsellBannerEnabled,
       },
       ...paymentData,
