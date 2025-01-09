@@ -350,6 +350,10 @@ class WC_Revolut_Settings_API extends WC_Settings_API {
 
 			$web_hook_url = get_site_url( null, self::$webhook_endpoint_new . '/' . $mode, 'https' );
 
+			if ( strpos( $web_hook_url, 'http://localhost' ) !== false ) {
+				return false;
+			}
+
 			if ( $this->get_option( $mode . '_revolut_webhook_domain' ) === $web_hook_url ) {
 				return false;
 			}
@@ -432,7 +436,12 @@ class WC_Revolut_Settings_API extends WC_Settings_API {
 			$mode = empty( $mode ) ? 'sandbox' : $mode;
 
 			$web_hook_url = get_site_url( null, self::$address_validation_webhook_endpoint_new . '/' . $mode, 'https' );
-			$location_id  = $this->setup_revolut_location();
+
+			if ( strpos( $web_hook_url, 'http://localhost' ) !== false ) {
+				return false;
+			}
+
+			$location_id = $this->setup_revolut_location();
 
 			if ( get_option( 'revolut_pay_synchronous_webhook_domain_' . $mode . '_' . $location_id ) === $web_hook_url ) {
 				update_option( 'revolut_' . $mode . '_location_id', $location_id );

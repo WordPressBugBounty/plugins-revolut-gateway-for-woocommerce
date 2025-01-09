@@ -16,6 +16,19 @@
 class WC_Gateway_Revolut_Pay extends WC_Payment_Gateway_Revolut {
 
 	const GATEWAY_ID = 'revolut_pay';
+
+	/**
+	 * Mock Shipping Address for testing
+	 *
+	 * @var array
+	 */
+	private static $mock_address = array(
+		'street_line_1' => 'test 1',
+		'city'          => 'test',
+		'country_code'  => 'FR',
+		'postcode'      => '10000',
+	);
+
 	/**
 	 * Constructor
 	 */
@@ -179,6 +192,10 @@ class WC_Gateway_Revolut_Pay extends WC_Payment_Gateway_Revolut {
 			$order_id = $this->get_revolut_order_by_public_id( $revolut_public_id );
 
 			$revolut_order = $this->api_client->get( "/orders/{$order_id}" );
+
+			if ( ! in_array( 'shipping_address', array_keys( $revolut_order ), true ) && $this->api_client->is_dev_mode() ) {
+				$revolut_order['shipping_address'] = self::$mock_address;
+			}
 
 			$shipping_address = $revolut_order['shipping_address'];
 

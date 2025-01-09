@@ -18,7 +18,7 @@ jQuery(function ($) {
 
     return RevolutUpsell({ locale, publicToken })
   }
-  
+
   const RevolutUpsellInstance = initRevolutUpsell()
 
   let $body = $(document.body)
@@ -33,8 +33,6 @@ jQuery(function ($) {
     $('#woocommerce-revolut-payment-request-element').length > 0
   let reload_checkout = 0
   const revolut_pay_v2 = $('.revolut-pay-v2').length > 0
-  let revolutIconMounted = false
-  let gatewayBannerMounted = false
   
   /**
    * Custom BlockUI
@@ -1171,8 +1169,10 @@ jQuery(function ($) {
   $body.on('updated_checkout payment_method_selected', handleUpdate)
   $body.on('updated_checkout', () => {
     if (!RevolutUpsellInstance) return
-    if (!gatewayBannerMounted) mountCardGatewayBanner()
-    if (!revolutIconMounted) mountRevolutPayIcon()
+    RevolutUpsellInstance.destroy()
+    mountRevPointsBanner()
+    mountCardGatewayBanner()
+    mountRevolutPayIcon()
   })
 
   if ($body.hasClass('woocommerce-add-payment-method')) {
@@ -1248,7 +1248,6 @@ jQuery(function ($) {
       },
       __metadata: { channel: 'woocommerce' },
     })
-    revolutIconMounted = true
   }
 
   const mountCardGatewayBanner = () => {
@@ -1261,7 +1260,6 @@ jQuery(function ($) {
       RevolutUpsellInstance.cardGatewayBanner.mount(target, {
         orderToken,
       })
-      gatewayBannerMounted = true
     }
   }
 

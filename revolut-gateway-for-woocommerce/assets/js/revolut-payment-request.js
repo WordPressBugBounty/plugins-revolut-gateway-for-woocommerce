@@ -70,7 +70,7 @@ jQuery(function ($) {
     return wc_revolut_payment_request_params.error_messages.cart_create_failed
   }
 
-  function createCart(add_to_cart = 0, revpay = false) {
+  function createCart({ add_to_cart = 0, revpay = false }) {
     return new Promise((resolve, reject) => {
       if (checkCartCreateErrors()) {
         let errorMsg = checkCartCreateErrors()
@@ -88,7 +88,7 @@ jQuery(function ($) {
       }
 
       let product_data = {}
-      product_data['add_to_cart'] = add_to_cart
+      product_data['add_to_cart'] = add_to_cart ? 1 : 0
       product_data['is_revolut_pay'] = revpay ? 1 : 0
       product_data['security'] = wc_revolut_payment_request_params.nonce.add_to_cart
       product_data['product_id'] = $('.single_add_to_cart_button').val()
@@ -336,7 +336,7 @@ jQuery(function ($) {
       shippingOptions: wc_revolut_payment_request_params.free_shipping_option,
       onClick() {
         if (!wc_revolut_payment_request_params.shipping_required) {
-          return createCart(1)
+          return createCart({ add_to_cart: true })
         }
       },
       onShippingOptionChange: selectedShippingOption => {
@@ -344,7 +344,7 @@ jQuery(function ($) {
         return updateShippingOptions(selectedShippingOption)
       },
       onShippingAddressChange: selectedShippingAddress => {
-        return createCart(1).then(function () {
+        return createCart({ add_to_cart: true }).then(function () {
           return getShippingOptions(selectedShippingAddress)
         })
       },
@@ -415,25 +415,24 @@ jQuery(function ($) {
       currency: wc_revolut_payment_request_params.currency,
       totalAmount: 0,
       requestShipping: true,
-      createOrder: () => {
-        return new Promise((resolve, reject) =>
-          createCart(1, true).then(result => {
-            getRevolutOrderPublicId().then(publicId => {
-              if (result && result.success) {
-                if (wc_revolut_payment_request_params.is_cart_page) {
-                  updatePaymentTotal().then(() => {
-                    return resolve({ publicId })
-                  })
-                }
-               return resolve({ publicId })
-              }
-              displayErrorMessage(
-                wc_revolut_payment_request_params.error_messages.checkout_general,
-              )
-            })
-          }),
-        )
-      },
+      createOrder: () =>
+        createCart({ add_to_cart: true, revpay: true }).then(result => {
+          if (!result || !result.success) {
+            displayErrorMessage(
+              wc_revolut_payment_request_params.error_messages.checkout_general,
+            )
+            throw new Error(
+              wc_revolut_payment_request_params.error_messages.checkout_general,
+            )
+          }
+
+          return getRevolutOrderPublicId().then(publicId => {
+            if (wc_revolut_payment_request_params.is_cart_page) {
+              return updatePaymentTotal().then(() => ({ publicId }))
+            }
+            return { publicId }
+          })
+        }),
       buttonStyle: {
         cashbackCurrency: wc_revolut_payment_request_params.currency,
         variant: wc_revolut_payment_request_params.revolut_pay_button_theme,

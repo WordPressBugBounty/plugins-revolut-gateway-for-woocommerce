@@ -244,4 +244,13 @@ class WC_Revolut_API_Client {
 	public function get_mode() {
 		return $this->mode;
 	}
+
+	/**
+	 * Checks API Developer mode.
+	 *
+	 * @return string
+	 */
+	public function is_dev_mode() {
+		return 'dev' === $this->mode;
+	}
 }

@@ -416,7 +416,9 @@ abstract class WC_Payment_Gateway_Revolut extends WC_Payment_Gateway_CC {
 		wp_enqueue_script( 'revolut-upsell', $this->api_client->base_url . '/upsell/embed.js', array(), WC_GATEWAY_REVOLUT_VERSION, true );
 		wp_enqueue_script( 'revolut-core', $this->api_client->base_url . '/embed.js', $dependencies, WC_GATEWAY_REVOLUT_VERSION, true );
 
-		if ( ! $this->blocks_loaded() ) {
+		if ( $this->blocks_loaded() ) {
+			$this->register_blocks_assets();
+		} else {
 			wp_enqueue_script( 'revolut-woocommerce', plugins_url( 'assets/js/revolut.js', WC_REVOLUT_MAIN_FILE ), $dependencies, WC_GATEWAY_REVOLUT_VERSION, true );
 		}
 
@@ -766,8 +768,6 @@ abstract class WC_Payment_Gateway_Revolut extends WC_Payment_Gateway_CC {
 			// check if it needs to process payment with previously saved method.
 			$previously_saved_wc_token = $this->maybe_pay_by_saved_method( $revolut_order_id, $is_using_saved_payment_method, $wc_token_id );
 
-			$this->save_wc_order_id( $revolut_payment_public_id, $revolut_order_id, $wc_order_id );
-
 			// payment should be processed until this point, if not throw an error.
 			$this->check_payment_processed( $revolut_order_id );
 			// payment process began...
@@ -786,6 +786,7 @@ abstract class WC_Payment_Gateway_Revolut extends WC_Payment_Gateway_CC {
 				$wc_token = $newly_saved_wc_token;
 			}
 
+			$this->save_wc_order_id( $revolut_payment_public_id, $revolut_order_id, $wc_order_id );
 			$this->save_payment_token_to_order( $wc_order, $wc_token, get_current_user_id() );
 			$this->verify_order_total( $revolut_order_id, $wc_order );
 			$this->update_payment_method_title( $revolut_order_id, $wc_order );
@@ -1008,7 +1009,7 @@ abstract class WC_Payment_Gateway_Revolut extends WC_Payment_Gateway_CC {
 						$wc_order->payment_complete( $revolut_order_id );
 						$wc_order->add_order_note( 'Payment has been successfully captured (Order ID: ' . $revolut_order_id . ').' );
 						return true;
-					} elseif ( 'AUTHORISED' === $order['state'] && 'authorize' === $mode ) {
+					} elseif ( 'AUTHORISED' === $order['state'] && ( 'authorize' === $mode || $this->api_client->is_dev_mode() ) ) {
 						return true;
 					} elseif ( 'PENDING' === $order['state'] ) {
 						$wc_order->add_order_note( 'Something went wrong while completing this payment. Please reach out to your customer and ask them to try again.' );
@@ -1740,5 +1741,19 @@ abstract class WC_Payment_Gateway_Revolut extends WC_Payment_Gateway_CC {
 		}
 
 		return false;
+	}
+
+	/**
+	 * Registers client assets for blocks checkout
+	 */
+	public function register_blocks_assets() {
+		$external_dependencies = require REVOLUT_PATH . 'client/dist/index.asset.php';
+		wp_register_script(
+			'wc-revolut-blocks-integration',
+			WC_REVOLUT_PLUGIN_URL . '/client/dist/index.js',
+			$external_dependencies['dependencies'],
+			WC_GATEWAY_REVOLUT_VERSION,
+			true
+		);
 	}
 }

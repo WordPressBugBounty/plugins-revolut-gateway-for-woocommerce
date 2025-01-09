@@ -67,17 +67,7 @@ class WC_Gateway_Revolut_CC_Blocks_Support extends Automattic\WooCommerce\Blocks
 	 * Registers gateway frontend assets
 	 */
 	public function get_payment_method_script_handles() {
-		$assets = require REVOLUT_PATH . 'client/dist/index.asset.php';
-		wp_register_script(
-			'wc-revolut-blocks-integration',
-			plugin_dir_url( __DIR__ ) . 'client/dist/index.js',
-			$assets['dependencies'],
-			$assets['version'],
-			true
-		);
-
 		return array( 'wc-revolut-blocks-integration' );
-
 	}
 
 	/**
