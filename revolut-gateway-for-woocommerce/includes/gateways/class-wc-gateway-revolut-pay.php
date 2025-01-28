@@ -98,17 +98,19 @@ class WC_Gateway_Revolut_Pay extends WC_Payment_Gateway_Revolut {
 			return;
 		}
 
-		$wc_order_id = $wc_order_id['wc_order_id'];
+		$wc_order = wc_get_order( $wc_order_id['wc_order_id'] );
 
-		$wc_order = wc_get_order( $wc_order_id );
-
-		if ( empty( $wc_order->get_id() ) ) {
+		if ( ! $wc_order || empty( $wc_order->get_id() ) ) {
 			return;
 		}
 
-		$this->log_error( 'order processing - public_id: ' . $public_id . ' - wc_order_id: ' . $wc_order_id );
+		if ( 'pending' !== $wc_order->get_status() ) {
+			$this->checkout_return( $wc_order, $revolut_order_id, 1 );
+		}
 
-		$this->process_payment( $wc_order_id, $public_id, false, '', false, true );
+		$this->log_error( 'order processing - public_id: ' . $public_id . ' - wc_order_id: ' . $wc_order_id['wc_order_id'] );
+
+		$this->process_payment( $wc_order_id['wc_order_id'], $public_id, false, '', false, true );
 	}
 
 	/**
@@ -276,62 +278,15 @@ class WC_Gateway_Revolut_Pay extends WC_Payment_Gateway_Revolut {
 	 * Add script to load card form
 	 */
 	public function wc_revolut_pay_enqueue_scripts() {
-		if ( ! $this->page_supported() ) {
+		if ( ! $this->page_supported() || $this->blocks_loaded() ) {
 			return;
 		}
 
-		wp_localize_script(
-			$this->blocks_loaded() ? 'wc-revolut-blocks-integration' : 'revolut-woocommerce',
-			'revolut_pay_button_style',
-			array(
-				'revolut_pay_button_theme'  => $this->get_option( 'revolut_pay_button_theme' ),
-				'revolut_pay_button_size'   => $this->get_option( 'revolut_pay_button_size' ),
-				'revolut_pay_button_radius' => $this->get_option( 'revolut_pay_button_radius' ),
-				'revolut_pay_origin_url'    => str_replace( array( 'https://', 'http://' ), '', get_site_url() ),
-			)
-		);
-
-		wp_localize_script(
-			$this->blocks_loaded() ? 'wc-revolut-blocks-integration' : 'revolut-woocommerce',
-			'wc_revolut_pay_banner_data',
-			array(
-				'revPointsBannerEnabled' => $this->points_banner_available(),
-				'revolutPayIconVariant'  => $this->promotional_settings->revolut_pay_label_icon_variant(),
-			),
-		);
-
-		if ( is_checkout() ) {
-			return;
+		if ( is_cart() || is_product() ) {
+			$this->enqueue_express_checkout_scripts();
 		}
 
-		wp_enqueue_script( 'revolut-core', $this->api_client->base_url . '/embed.js', false, WC_GATEWAY_REVOLUT_VERSION, true );
-
-		if ( $this->blocks_loaded() ) {
-			wp_localize_script(
-				'wc-revolut-blocks-integration',
-				'wc_revolut_payment_request_params',
-				$this->get_wc_revolut_payment_request_params()
-			);
-			return;
-		}
-
-		wp_enqueue_script(
-			'revolut-woocommerce-payment-request',
-			plugins_url( 'assets/js/revolut-payment-request.js', WC_REVOLUT_MAIN_FILE ),
-			array(
-				'revolut-core',
-				'jquery',
-			),
-			WC_GATEWAY_REVOLUT_VERSION,
-			true
-		);
-
-		wp_localize_script(
-			'revolut-woocommerce-payment-request',
-			'wc_revolut_payment_request_params',
-			$this->get_wc_revolut_payment_request_params()
-		);
-
+		$this->localize_revolut_pay_scripts();
 	}
 
 	/**
@@ -526,13 +481,6 @@ class WC_Gateway_Revolut_Pay extends WC_Payment_Gateway_Revolut {
 	}
 
 	/**
-	 * Is points banner available.
-	 */
-	public function points_banner_available() {
-		return $this->page_supported() && $this->promotional_settings->revpoints_banner_enabled();
-	}
-
-	/**
 	 * Returns wether payment method is supported in the current page or not
 	 */
 	public function page_supported() {
@@ -541,5 +489,51 @@ class WC_Gateway_Revolut_Pay extends WC_Payment_Gateway_Revolut {
 			return $this->is_available();
 		}
 		return $this->is_available() && $this->page_supports_payment_request_button( $this->get_option( 'revolut_pay_button_locations' ) );
+	}
+
+	/**
+	 * Returns Revolut Pay button styles
+	 *
+	 * @return array
+	 */
+	public function get_revolut_pay_button_styles() {
+		return array(
+			'revolut_pay_button_theme'  => $this->get_option( 'revolut_pay_button_theme' ),
+			'revolut_pay_button_size'   => $this->get_option( 'revolut_pay_button_size' ),
+			'revolut_pay_button_radius' => $this->get_option( 'revolut_pay_button_radius' ),
+			'revolut_pay_origin_url'    => str_replace( array( 'https://', 'http://' ), '', get_site_url() ),
+		);
+	}
+
+	/**
+	 * Returns Revolut Pay banner data
+	 *
+	 * @return array
+	 */
+	public function get_revolut_pay_banners_data() {
+		return array(
+			'revPointsBannerEnabled' => $this->points_banner_available(),
+			'revolutPayIconVariant'  => $this->promotional_settings->revolut_pay_label_icon_variant(),
+		);
+	}
+
+	/**
+	 * Localize Revolut Pay required parameters
+	 *
+	 * @return void
+	 */
+	public function localize_revolut_pay_scripts() {
+
+		wp_localize_script(
+			WC_REVOLUT_STANDARD_CHECKOUT_SCRIPT_HANDLE,
+			'revolut_pay_button_style',
+			$this->get_revolut_pay_button_styles()
+		);
+
+		wp_localize_script(
+			WC_REVOLUT_STANDARD_CHECKOUT_SCRIPT_HANDLE,
+			'wc_revolut_pay_banner_data',
+			$this->get_revolut_pay_banners_data(),
+		);
 	}
 }

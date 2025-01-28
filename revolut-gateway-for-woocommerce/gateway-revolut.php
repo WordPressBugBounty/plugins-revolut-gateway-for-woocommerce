@@ -6,7 +6,7 @@
  * Author: Revolut
  * Author URI: https://www.revolut.com/business/online-payments
  * Text Domain: revolut-gateway-for-woocommerce
- * Version: 4.18.5
+ * Version: 4.18.6
  * Requires at least: 4.4
  * Tested up to: 6.7.1
  * WC tested up to: 9.4.3
@@ -15,15 +15,18 @@
 
 defined( 'ABSPATH' ) || exit;
 define( 'REVOLUT_PATH', plugin_dir_path( __FILE__ ) );
-define( 'WC_GATEWAY_REVOLUT_VERSION', '4.18.5' );
+define( 'WC_GATEWAY_REVOLUT_VERSION', '4.18.6' );
 define( 'WC_GATEWAY_PUBLIC_KEY_ENDPOINT', '/public-key/latest' );
 define( 'WC_GATEWAY_REVPAY_INDEX', 'USE_REVOLUT_PAY_2_0' );
 define( 'WC_REVOLUT_WAIT_FOR_ORDER_TIME', 2 );
 define( 'WC_REVOLUT_FETCH_API_ORDER_ATTEMPTS', 10 );
 define( 'WC_REVOLUT_AUTO_CANCEL_TIMEOUT', 'PT2M' );
 define( 'WC_REVOLUT_GATEWAYS', array( 'revolut', 'revolut_cc', 'revolut_pay', 'revolut_payment_request' ) );
-
-
+define( 'WC_REVOLUT_BLOCKS_CHECKOUT_SCRIPT_HANDLE', 'wc-revolut-blocks-checkout-handle' );
+define( 'WC_REVOLUT_STANDARD_CHECKOUT_SCRIPT_HANDLE', 'wc-revolut-standard-checkout-handle' );
+define( 'WC_REVOLUT_EXPRESS_CHECKOUT_SCRIPT_HANDLE', 'wc-revolut-express-checkout-script-handle' );
+define( 'WC_REVOLUT_CHECKOUT_WIDGET_SCRIPT_HANDLE', 'revolut-checkout' );
+define( 'WC_REVOLUT_UPSELL_WIDGET_SCRIPT_HANDLE', 'revolut-upsell' );
 /**
  * Manage all dependencies
  */
@@ -80,25 +83,25 @@ add_action( 'woocommerce_blocks_loaded', 'initiate_gateway_block_support' );
 function initiate_gateway_block_support() {
 
 	if ( class_exists( 'Automattic\WooCommerce\Blocks\Payments\Integrations\AbstractPaymentMethodType' ) ) {
-		require_once REVOLUT_PATH . 'includes/class-wc-gateway-revolut-cc-blocks-support.php';
-		require_once REVOLUT_PATH . 'includes/class-wc-gateway-revolut-pay-blocks-support.php';
-		require_once REVOLUT_PATH . 'includes/class-wc-gateway-revolut-payment-request-blocks-support.php';
 		add_action(
 			'woocommerce_blocks_payment_method_type_registration',
 			function( Automattic\WooCommerce\Blocks\Payments\PaymentMethodRegistry $payment_method_registry ) {
 				$gateways     = WC()->payment_gateways()->payment_gateways();
 				$gateways_ids = array_keys( $gateways );
 
-				if ( in_array( WC_Gateway_Revolut_CC::GATEWAY_ID, $gateways_ids, true ) ) {
-					$payment_method_registry->register( new WC_Gateway_Revolut_CC_Blocks_Support( $gateways[ WC_Gateway_Revolut_CC::GATEWAY_ID ] ) );
-				}
+				require_once REVOLUT_PATH . 'includes/class-wc-gateway-revolut-blocks-support.php';
 
-				if ( in_array( WC_Gateway_Revolut_Pay::GATEWAY_ID, $gateways_ids, true ) ) {
-					$payment_method_registry->register( new WC_Gateway_Revolut_Pay_Blocks_Support( $gateways[ WC_Gateway_Revolut_Pay::GATEWAY_ID ] ) );
-				}
+				if ( in_array( WC_Gateway_Revolut_CC::GATEWAY_ID, $gateways_ids, true ) &&
+					in_array( WC_Gateway_Revolut_Pay::GATEWAY_ID, $gateways_ids, true ) &&
+					in_array( WC_Gateway_Revolut_Payment_Request::GATEWAY_ID, $gateways_ids, true ) ) {
 
-				if ( in_array( WC_Gateway_Revolut_Payment_Request::GATEWAY_ID, $gateways_ids, true ) ) {
-					$payment_method_registry->register( new WC_Gateway_Revolut_Payment_Request_Blocks_Support( $gateways[ WC_Gateway_Revolut_Payment_Request::GATEWAY_ID ] ) );
+					$payment_method_registry->register(
+						new WC_Gateway_Revolut_Blocks_Support(
+							$gateways[ WC_Gateway_Revolut_CC::GATEWAY_ID ],
+							$gateways[ WC_Gateway_Revolut_Pay::GATEWAY_ID ],
+							$gateways[ WC_Gateway_Revolut_Payment_Request::GATEWAY_ID ]
+						)
+					);
 				}
 
 			},

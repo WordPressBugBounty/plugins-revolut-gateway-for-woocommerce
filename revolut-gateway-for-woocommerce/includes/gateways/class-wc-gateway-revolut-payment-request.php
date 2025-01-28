@@ -57,58 +57,11 @@ class WC_Gateway_Revolut_Payment_Request extends WC_Payment_Gateway_Revolut {
 	 * Add required scripts
 	 */
 	public function revolut_enqueue_payment_request_scripts() {
-		try {
-			if ( ! $this->page_supported() ) {
-				return;
-			}
-
-			wp_localize_script(
-				'revolut-woocommerce',
-				'revolut_payment_request_button_style',
-				array(
-					'payment_request_button_title'  => $this->get_option( 'title' ),
-					'payment_request_button_type'   => $this->get_option( 'payment_request_button_type' ),
-					'payment_request_button_theme'  => $this->get_option( 'payment_request_button_theme' ),
-					'payment_request_button_radius' => $this->get_option( 'payment_request_button_radius' ),
-					'payment_request_button_size'   => $this->get_option( 'payment_request_button_size' ),
-				)
-			);
-
-			if ( is_checkout() ) {
-				return;
-			}
-
-			wp_enqueue_script( 'revolut-core', $this->api_client->base_url . '/embed.js', false, WC_GATEWAY_REVOLUT_VERSION, true );
-
-			if ( $this->blocks_loaded() ) {
-				wp_localize_script(
-					'wc-revolut-blocks-integration',
-					'wc_revolut_payment_request_params',
-					$this->get_wc_revolut_payment_request_params()
-				);
-				return;
-			}
-
-			wp_enqueue_script(
-				'revolut-woocommerce-payment-request',
-				plugins_url( 'assets/js/revolut-payment-request.js', WC_REVOLUT_MAIN_FILE ),
-				array(
-					'revolut-core',
-					'jquery',
-				),
-				WC_GATEWAY_REVOLUT_VERSION,
-				true
-			);
-
-			wp_localize_script(
-				'revolut-woocommerce-payment-request',
-				'wc_revolut_payment_request_params',
-				$this->get_wc_revolut_payment_request_params()
-			);
-
-		} catch ( Exception $e ) {
-			$this->log_error( $e->getMessage() );
+		if ( ! $this->page_supported() || $this->blocks_loaded() ) {
+			return;
 		}
+
+		$this->localize_prb_scripts();
 	}
 
 	/**
@@ -630,5 +583,33 @@ class WC_Gateway_Revolut_Payment_Request extends WC_Payment_Gateway_Revolut {
 		}
 
 		return $this->is_available() && $this->page_supports_payment_request_button( $this->get_option( 'payment_request_button_locations' ) );
+	}
+
+	/**
+	 * Returns PRB button styles
+	 *
+	 * @return array
+	 */
+	public function get_prb_button_styles() {
+		return array(
+			'payment_request_button_title'  => $this->get_option( 'title' ),
+			'payment_request_button_type'   => $this->get_option( 'payment_request_button_type' ),
+			'payment_request_button_theme'  => $this->get_option( 'payment_request_button_theme' ),
+			'payment_request_button_radius' => $this->get_option( 'payment_request_button_radius' ),
+			'payment_request_button_size'   => $this->get_option( 'payment_request_button_size' ),
+		);
+	}
+
+	/**
+	 * Localize PRB required parameters
+	 *
+	 * @return void
+	 */
+	public function localize_prb_scripts() {
+		wp_localize_script(
+			WC_REVOLUT_STANDARD_CHECKOUT_SCRIPT_HANDLE,
+			'revolut_payment_request_button_style',
+			$this->get_prb_button_styles()
+		);
 	}
 }
