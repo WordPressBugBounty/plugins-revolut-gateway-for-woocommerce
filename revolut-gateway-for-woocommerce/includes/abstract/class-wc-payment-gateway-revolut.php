@@ -77,11 +77,19 @@ abstract class WC_Payment_Gateway_Revolut extends WC_Payment_Gateway_CC {
 	public $promotional_settings;
 
 	/**
+	 * Advanced plugin settings
+	 *
+	 * @var WC_Revolut_Advanced_Settings
+	 */
+	public $advanced_settings;
+
+	/**
 	 * Constructor
 	 */
 	public function __construct() {
 		$this->api_settings         = revolut_wc()->api_settings;
 		$this->promotional_settings = revolut_wc()->promotional_settings;
+		$this->advanced_settings    = revolut_wc()->advanced_settings;
 		$this->has_fields           = true;
 
 		$this->init_supports();
@@ -230,7 +238,7 @@ abstract class WC_Payment_Gateway_Revolut extends WC_Payment_Gateway_CC {
 
 		$this->maybe_cancel_previous_wc_order( $revolut_public_id, $wc_order_id );
 		$revolut_order_id = $this->get_revolut_order_by_public_id( $revolut_public_id );
-		$this->save_wc_order_id( $revolut_public_id, $revolut_order_id, $wc_order_id );
+		$this->save_wc_order_id( $revolut_public_id, $revolut_order_id, $wc_order_id, $wc_order->get_order_number() );
 		$wc_order->update_meta_data( 'revolut_payment_public_id', $revolut_public_id );
 		$wc_order->update_meta_data( 'revolut_payment_order_id', $revolut_order_id );
 		$wc_order->update_meta_data( 'is_express_checkout', $is_express_checkout );
@@ -770,7 +778,7 @@ abstract class WC_Payment_Gateway_Revolut extends WC_Payment_Gateway_CC {
 				$wc_token = $newly_saved_wc_token;
 			}
 
-			$this->save_wc_order_id( $revolut_payment_public_id, $revolut_order_id, $wc_order_id );
+			$this->save_wc_order_id( $revolut_payment_public_id, $revolut_order_id, $wc_order_id, $wc_order->get_order_number() );
 			$this->save_payment_token_to_order( $wc_order, $wc_token, get_current_user_id() );
 			$this->verify_order_total( $revolut_order_id, $wc_order );
 			$this->update_payment_method_title( $revolut_order_id, $wc_order );
@@ -887,10 +895,11 @@ abstract class WC_Payment_Gateway_Revolut extends WC_Payment_Gateway_CC {
 	 * @param string $public_id Revolut public id.
 	 * @param string $revolut_order_id Revolut order id.
 	 * @param int    $wc_order_id WooCommerce order id.
+	 * @param string $wc_order_number WooCommerce order id.
 	 *
 	 * @throws Exception Exception.
 	 */
-	protected function save_wc_order_id( $public_id, $revolut_order_id, $wc_order_id ) {
+	protected function save_wc_order_id( $public_id, $revolut_order_id, $wc_order_id, $wc_order_number ) {
 		try {
 			global $wpdb;
 
@@ -921,8 +930,10 @@ abstract class WC_Payment_Gateway_Revolut extends WC_Payment_Gateway_CC {
 				return false;
 			}
 
+			$merchant_order_ext_ref = $this->advanced_settings->external_order_reference_is_order_id() ? $wc_order_id : $wc_order_number;
+
 			$body = array(
-				'merchant_order_ext_ref' => $wc_order_id,
+				'merchant_order_ext_ref' => $merchant_order_ext_ref,
 			);
 
 			$this->api_client->patch( "/orders/$revolut_order_id", $body );

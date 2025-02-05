@@ -37,6 +37,13 @@ class WC_Revolut_Manager {
 	public $promotional_settings;
 
 	/**
+	 * Advanced Plugin Settings Class instance.
+	 *
+	 * @var WC_Revolut_Advanced_Settings
+	 */
+	public $advanced_settings;
+
+	/**
 	 * Get singleton class instance.
 	 */
 	public static function instance() {
@@ -88,11 +95,11 @@ class WC_Revolut_Manager {
 
 		$this->api_settings         = new WC_Revolut_Settings_API();
 		$this->promotional_settings = new WC_Revolut_Promotional_Settings();
+		$this->advanced_settings    = new WC_Revolut_Advanced_Settings();
 		new WC_Revolut_Apple_Pay_OnBoarding();
 		new WC_Revolut_Payment_Ajax_Controller();
 		new WC_Gateway_Revolut_Payment_Request();
 		new WC_Gateway_Revolut_Pay();
-		new WC_Revolut_Advanced_Settings();
 	}
 }
 

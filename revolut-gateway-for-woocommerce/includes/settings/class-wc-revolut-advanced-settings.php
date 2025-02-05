@@ -51,27 +51,32 @@ class WC_Revolut_Advanced_Settings extends WC_Revolut_Settings_API {
 	}
 
 	/**
+	 * Check External Order Reference
+	 */
+	public function external_order_reference_is_order_id() {
+		return $this->get_option( 'external_order_reference' ) === 'order_id';
+	}
+
+	/**
 	 * Initialize Settings Form Fields
 	 */
 	public function init_form_fields() {
 		$this->form_fields = array(
-			'title'                              => array(
+			'title'                    => array(
 				'type'  => 'title',
 				'title' => __( 'Revolut Gateway - Advanced Settings', 'revolut-gateway-for-woocommerce' ),
 			),
-			'clear_unused_order_records'         => array(
-				'title'       => 'Clear unused orders now',
-				'type'        => 'text',
-				'description' => '<button class="revolut_clear_unused_order_records" style="min-height: 30px;"><span id="span-for-active-button-sandbox">Clear</span></button><br><br><b>What is this?</b> The plugin creates a Revolut order every time a customer is attempting to pay. If you have fast checkout options active, this could mean that an order is created for every site visitor. If you have limited space on your database or you have a lot of site visitors, you might end up with a lot of unused orders. You can use this button to delete unused orders. WARNING: This could also delete orders that customers have not yet paid but have the intention to, so make sure that this is only used when there are no visitors on your website',
+			'external_order_reference' => array(
+				'title'       => __( 'Select External WooCommerce Order Reference', 'revolut-gateway-for-woocommerce' ),
+				'description' => __( 'This configuration allows selecting between using the Order ID (e.g. 1756) or modified Order Numbers (e.g RVLT001756) for the purpose of external references.', 'revolut-gateway-for-woocommerce' ),
+				'desc_tip'    => true,
+				'type'        => 'select',
+				'default'     => 'order_id',
+				'options'     => array(
+					'order_id'     => __( 'WooCommerce Order ID', 'revolut-gateway-for-woocommerce' ),
+					'order_number' => __( 'WooCommerce Order Number', 'revolut-gateway-for-woocommerce' ),
+				),
 			),
-			'consent_clear_unused_order_records' => array(
-				'title'   => '',
-				'label'   => __( 'By ticking this box I understand that unused order IDs stored in my website’s database will be deleted. I understand as well that this is run at my own risk and could cause temporary issues with payments being failed.', 'revolut-gateway-for-woocommerce' ),
-				'type'    => 'checkbox',
-				'default' => 'no',
-				'class'   => 'info_clear_unused_order_records',
-			),
-
 		);
 	}
 }
