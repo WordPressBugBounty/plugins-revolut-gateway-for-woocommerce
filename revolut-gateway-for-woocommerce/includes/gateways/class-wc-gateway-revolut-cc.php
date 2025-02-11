@@ -231,7 +231,7 @@ class WC_Gateway_Revolut_CC extends WC_Payment_Gateway_Revolut {
 			}
 
 			// update internal table to avoid piggybacking on already paid order.
-			$this->save_wc_order_id( $revolut_payment_public_id, $revolut_order_id, $wc_order_id );
+			$this->save_wc_order_id( $revolut_payment_public_id, $revolut_order_id, $wc_order_id, $renewal_order->get_order_number() );
 
 			// make the payment with saved card $payment_method_id.
 			$wc_token = WC_Payment_Tokens::get( $payment_token_id );
@@ -571,7 +571,7 @@ class WC_Gateway_Revolut_CC extends WC_Payment_Gateway_Revolut {
 		$shipping_total      = $this->get_cart_total_shipping();
 		$hide_payment_method = ! empty( $hide_fieldset ) && ! $display_tokenization ? true : false;
 
-		$display_banner = $this->get_option( 'card_widget_type' ) !== 'popup' && $this->promotional_settings->upsell_banner_enabled() ? '<div id="revolut-upsell-banner"></div>' : '';
+		$display_banner = $this->get_option( 'card_widget_type' ) !== 'popup' && $this->promotional_settings->upsell_banner_enabled() ? '<div data-order-token=' . $public_id . ' id="revolut-upsell-banner"></div>' : '';
 
 		$cardholder_name_field = '';
 

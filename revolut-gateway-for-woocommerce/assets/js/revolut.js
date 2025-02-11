@@ -1254,13 +1254,11 @@ jQuery(function ($) {
     const target = document.getElementById('revolut-upsell-banner')
     if (!target || isPaymentMethodSaveView()) return
 
-    const { orderToken } = wc_revolut.informational_banner_data
+    const { orderToken } = target.dataset
 
-    if (target) {
-      RevolutUpsellInstance.cardGatewayBanner.mount(target, {
-        orderToken,
-      })
-    }
+    RevolutUpsellInstance.cardGatewayBanner.mount(target, {
+      orderToken,
+    })
   }
 
   const mountOrderConfirmationBanner = () => {
