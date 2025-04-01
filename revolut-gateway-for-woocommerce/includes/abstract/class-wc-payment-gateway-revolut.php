@@ -67,7 +67,7 @@ abstract class WC_Payment_Gateway_Revolut extends WC_Payment_Gateway_CC {
 	 *
 	 * @var array
 	 */
-	public $card_payments_currency_list = array( 'AUD', 'CAD', 'CHF', 'CZK', 'DKK', 'EUR', 'GBP', 'HKD', 'HUF', 'JPY', 'NOK', 'NZD', 'PLN', 'RON', 'SEK', 'SGD', 'USD', 'ZAR' );
+	public $card_payments_currency_list = array( 'AUD', 'CAD', 'CHF', 'CZK', 'DKK', 'EUR', 'GBP', 'HKD', 'HUF', 'JPY', 'NOK', 'NZD', 'PLN', 'RON', 'SEK', 'SGD', 'USD', 'ZAR', 'MXN', 'TRY', 'ILS', 'BGN' );
 
 	/**
 	 * Promotional settings
