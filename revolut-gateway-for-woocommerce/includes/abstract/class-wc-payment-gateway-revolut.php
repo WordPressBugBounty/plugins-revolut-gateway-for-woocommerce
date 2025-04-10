@@ -104,8 +104,8 @@ abstract class WC_Payment_Gateway_Revolut extends WC_Payment_Gateway_CC {
 		add_action( 'woocommerce_update_options_payment_gateways_' . $this->id, array( $this, 'process_admin_options' ) );
 		add_action( 'woocommerce_checkout_order_processed', array( $this, 'woocommerce_checkout_revolut_order_processed' ), 300, 3 );
 		add_action( 'woocommerce_order_status_changed', array( $this, 'order_action_from_woocommerce' ), 300, 3 );
-		add_action( 'add_option_woocommerce_revolut_settings', array( $this, 'request_available_payment_methods_and_brand_logos' ) );
-		add_action( 'update_option_woocommerce_revolut_settings', array( $this, 'request_available_payment_methods_and_brand_logos' ) );
+		add_action( 'add_option_woocommerce_revolut_settings', array( $this, 'plugin_options_updated' ) );
+		add_action( 'update_option_woocommerce_revolut_settings', array( $this, 'plugin_options_updated' ) );
 		add_action( 'woocommerce_update_order', array( $this, 'save_shipments_information' ), 10, 1 );
 		add_action( 'wp_enqueue_scripts', array( $this, 'wc_revolut_enqueue_scripts' ) );
 	}
@@ -1551,7 +1551,9 @@ abstract class WC_Payment_Gateway_Revolut extends WC_Payment_Gateway_CC {
 	/**
 	 * Update available payment methods & card brands list.
 	 */
-	public function request_available_payment_methods_and_brand_logos() {
+	public function plugin_options_updated() {
+		$this->api_client = new WC_Revolut_API_Client( revolut_wc()->api_settings );
+		$this->update_revolut_merchant_public_key();
 		$this->fetch_available_payment_methods_and_brand_logos();
 	}
 

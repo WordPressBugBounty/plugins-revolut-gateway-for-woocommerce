@@ -726,14 +726,7 @@ trait WC_Gateway_Revolut_Helper_Trait {
 				return $merchant_public_key;
 			}
 
-			$merchant_public_key = $this->api_client->get( WC_GATEWAY_PUBLIC_KEY_ENDPOINT, false, true );
-			$merchant_public_key = isset( $merchant_public_key['public_key'] ) ? $merchant_public_key['public_key'] : '';
-
-			if ( empty( $merchant_public_key ) ) {
-				return '';
-			}
-
-			$this->set_revolut_merchant_public_key( $merchant_public_key );
+			$merchant_public_key = $this->update_revolut_merchant_public_key();
 			return $merchant_public_key;
 		} catch ( Exception $e ) {
 			$this->log_error( 'get_merchant_public_api_key: ' . $e->getMessage() );
@@ -843,11 +836,12 @@ trait WC_Gateway_Revolut_Helper_Trait {
 
 	/**
 	 * Set  Revolut Merchant Public Key
-	 *
-	 * @param string $value Revolut Merchant public Key.
 	 */
-	protected function set_revolut_merchant_public_key( $value ) {
-		update_option( "{$this->api_client->mode}_revolut_merchant_public_key", $value );
+	protected function update_revolut_merchant_public_key() {
+		$merchant_public_key = $this->api_client->get( WC_GATEWAY_PUBLIC_KEY_ENDPOINT, false, true );
+		$merchant_public_key = isset( $merchant_public_key['public_key'] ) ? $merchant_public_key['public_key'] : '';
+		update_option( "{$this->api_client->mode}_revolut_merchant_public_key", $merchant_public_key );
+		return $merchant_public_key;
 	}
 
 	/**
