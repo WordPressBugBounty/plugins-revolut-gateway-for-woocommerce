@@ -60,10 +60,10 @@ class WC_Revolut_Promotional_Settings extends WC_Revolut_Settings_API {
 				'title' => __( 'Revolut Gateway - Rewards & Promotions Settings', 'revolut-gateway-for-woocommerce' ),
 			),
 			'gateway_upsell_banner_enabled' => array(
-				'title'       => 'Sign up banner',
+				'title'       => 'Reward banner',
 				'label'       => __( 'Offer your customers to join Revolut where they will receive exclusive rewards for signing up', 'revolut-gateway-for-woocommerce' ),
 				'type'        => 'checkbox',
-				'description' => 'This will allow them to pay via Revolut Pay the next time they visit your store and checkout faster.',
+				'description' => 'This allows new signups to get a Revolut funded reward after checkout. Enabling this banner boosts payment conversion on average by 5%',
 				'default'     => 'yes',
 			),
 			'revolut_points_banner_enabled' => array(
