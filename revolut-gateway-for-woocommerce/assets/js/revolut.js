@@ -33,7 +33,7 @@ jQuery(function ($) {
     $('#woocommerce-revolut-payment-request-element').length > 0
   let reload_checkout = 0
   const revolut_pay_v2 = $('.revolut-pay-v2').length > 0
-  
+
   /**
    * Custom BlockUI
    */
@@ -429,11 +429,17 @@ jQuery(function ($) {
     }
 
     if (isPaymentRequestButtonActive && !paymentRequestButtonResult) {
-      initPaymentRequestButton(
-        document.getElementById('woocommerce-revolut-payment-request-element'),
-        currentPaymentMethod.publicId,
-        false,
+      const paymentRequestElement = document.getElementById(
+        'woocommerce-revolut-payment-request-element',
       )
+
+      if (paymentRequestElement != null) {
+        initPaymentRequestButton(
+          document.getElementById('woocommerce-revolut-payment-request-element'),
+          paymentRequestElement.dataset.publicId,
+          false,
+        )
+      }
 
       if (instance !== null) {
         instance.destroy()
@@ -571,7 +577,12 @@ jQuery(function ($) {
   function initPaymentRequestButton(target, publicId, render = true) {
     $('#woocommerce-revolut-payment-request-element').empty()
 
+    if (!publicId) {
+      return
+    }
+
     instance = RevolutCheckout(publicId)
+
     const {
       payment_request_button_type,
       payment_request_button_size,
@@ -584,6 +595,9 @@ jQuery(function ($) {
     paymentRequest = instance.paymentRequest({
       target: target,
       requestShipping: false,
+      requestPayerInfo: {
+        billingAddress: false,
+      },
       onClick: () => {
         validateCheckoutForm().then(function (valid) {
           if (!valid) {

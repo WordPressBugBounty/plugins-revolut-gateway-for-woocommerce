@@ -236,7 +236,7 @@ trait WC_Gateway_Revolut_Express_Checkout_Helper_Trait {
 		$data                      = array();
 		$data['productPrice']      = $this->get_product_price( $product );
 		$data['shipping_required'] = ( wc_shipping_enabled() && $product->needs_shipping() && 0 !== wc_get_shipping_method_count( true ) );
-
+		$data['is_variable']       = in_array( $product->get_type(), array( 'variable', 'variation' ), true );
 		return $data;
 	}
 

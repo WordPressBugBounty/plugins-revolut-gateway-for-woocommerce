@@ -1114,4 +1114,68 @@ trait WC_Gateway_Revolut_Helper_Trait {
 
 		return '';
 	}
+
+	/**
+	 * Traverse meta data on a given order, looking for shippment data on known shipping plugins.
+	 *
+	 * @param object $wc_order WC Order object.
+	 */
+	public function get_shipments_data_by_known_plugins( $wc_order ) {
+		$shipments = array();
+
+		foreach ( $wc_order->get_meta_data() as $meta ) {
+
+			switch ( $meta->key ) {
+				// WooCommerce Shipment Tracking Plugin meta key.
+				case '_wc_shipment_tracking_items':
+					if ( ! is_array( $meta->value ) ) {
+						break;
+					}
+
+					foreach ( $meta->value as $tracking_item ) {
+						$shipping_company = ! empty( $tracking_item['custom_tracking_provider'] ) ? $tracking_item['custom_tracking_provider'] : $tracking_item['tracking_provider'];
+						$tracking_number  = $tracking_item['tracking_number'];
+
+						if ( empty( $shipping_company ) || empty( $tracking_number ) ) {
+							continue;
+						}
+
+						array_push(
+							$shipments,
+							array(
+								'tracking_number'       => $tracking_number,
+								'shipping_company_name' => $shipping_company,
+							)
+						);
+					}
+			}
+		}
+
+		return $shipments;
+
+	}
+
+	/**
+	 * Traverse meta data on a given order, looking for shippment data by approximating meta keys.
+	 *
+	 * @param object $wc_order WC Order object.
+	 */
+	public function get_shipments_data_by_approximate_meta_keys( $wc_order ) {
+		$shipments = array();
+
+		$shipping_company = $this->get_order_meta_by_partial_key( $wc_order, array( 'shipping_company', 'shipping_provider', 'tracking_provider' ) );
+		$tracking_number  = $this->get_order_meta_by_partial_key( $wc_order, array( 'tracking_number', 'tracking_code' ) );
+
+		if ( ! empty( $shipping_company ) && ! empty( $tracking_number ) ) {
+			array_push(
+				$shipments,
+				array(
+					'tracking_number'       => $tracking_number,
+					'shipping_company_name' => $shipping_company,
+				)
+			);
+		}
+
+		return $shipments;
+	}
 }

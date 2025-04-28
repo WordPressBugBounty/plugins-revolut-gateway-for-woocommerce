@@ -84,6 +84,13 @@ abstract class WC_Payment_Gateway_Revolut extends WC_Payment_Gateway_CC {
 	public $advanced_settings;
 
 	/**
+	 * Static var to control firing save_shipments_information callback
+	 *
+	 * @var bool
+	 */
+	protected static $processing_save_shipments_information_hook = false;
+
+	/**
 	 * Constructor
 	 */
 	public function __construct() {
@@ -111,35 +118,19 @@ abstract class WC_Payment_Gateway_Revolut extends WC_Payment_Gateway_CC {
 	}
 
 	/**
-	 * Fires immediately after shipment data.
-	 *
-	 * @param int   $order_id    ID of Order object.
-	 * @param array $tracking_item tracking information.
-	 */
-	public function woocommerce_shipment_save_shipments_information( $order_id, $tracking_item ) {
-		try {
-			$wc_order         = wc_get_order( $order_id );
-			$revolut_order_id = $wc_order->get_meta( 'revolut_payment_order_id', true );
-			$shipments        = array(
-				array(
-					'tracking_number'       => $tracking_item['tracking_number'],
-					'shipping_company_name' => $tracking_item['tracking_provider'],
-				),
-			);
-
-			$this->api_client->patch( "/orders/$revolut_order_id", $shipments, false, true );
-		} catch ( Exception $e ) {
-			$this->log_error( 'woocommerce_shipment_save_shipments_information failed : ' . $e->getMessage() );
-		}
-	}
-
-	/**
 	 * Fires immediately after updating metadata.
 	 *
 	 * @param int $order_id Order Object ID.
 	 */
 	public function save_shipments_information( $order_id = 0 ) {
 		try {
+
+			if ( self::$processing_save_shipments_information_hook ) {
+				return;
+			}
+
+			self::$processing_save_shipments_information_hook = true;
+
 			$wc_order                = wc_get_order( $order_id );
 			$revolut_order_id        = $wc_order->get_meta( 'revolut_payment_order_id', true );
 			$is_shipments_info_saved = (int) $wc_order->get_meta( 'is_rev_shipments_info_saved' );
@@ -148,21 +139,19 @@ abstract class WC_Payment_Gateway_Revolut extends WC_Payment_Gateway_CC {
 				return;
 			}
 
-			$shipping_company = $this->get_order_meta_by_partial_key( $wc_order, array( 'shipping_company', 'shipping_provider', 'tracking_provider' ) );
-			$tracking_number  = $this->get_order_meta_by_partial_key( $wc_order, array( 'tracking_number', 'tracking_code' ) );
+			$shipments = $this->get_shipments_data_by_known_plugins( $wc_order );
 
-			if ( empty( $shipping_company ) || empty( $tracking_number ) ) {
+			if ( empty( $shipments ) ) {
+				$shipments = $this->get_shipments_data_by_approximate_meta_keys( $wc_order );
+			}
+
+			if ( empty( $shipments ) ) {
 				return;
 			}
 
 			$shipping = $this->collect_order_shipping_info( $wc_order );
 
-			$shipping['shipments'] = array(
-				array(
-					'tracking_number'       => $tracking_number,
-					'shipping_company_name' => $shipping_company,
-				),
-			);
+			$shipping['shipments'] = $shipments;
 
 			$order_details = array( 'shipping' => $shipping );
 
@@ -170,7 +159,11 @@ abstract class WC_Payment_Gateway_Revolut extends WC_Payment_Gateway_CC {
 
 			$wc_order->update_meta_data( 'is_rev_shipments_info_saved', true );
 			$wc_order->save();
+
+			self::$processing_save_shipments_information_hook = false;
+
 		} catch ( Exception $e ) {
+			self::$processing_save_shipments_information_hook = false;
 			$this->log_error( 'save_shipments_information error : ' . $e->getMessage() );
 		}
 	}

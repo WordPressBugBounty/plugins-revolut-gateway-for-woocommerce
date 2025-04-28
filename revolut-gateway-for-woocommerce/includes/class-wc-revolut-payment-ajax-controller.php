@@ -415,11 +415,13 @@ class WC_Revolut_Payment_Ajax_Controller {
 		check_ajax_referer( 'wc-revolut-get-express-checkout-params', 'security' );
 
 		try {
+			$descriptor = $this->get_revolut_order_descriptor();
 			wp_send_json(
 				array(
 					'success'           => true,
 					'revolut_public_id' => $this->create_express_checkout_public_id(),
 					'checkout_nonce'    => wp_create_nonce( 'woocommerce-process_checkout' ),
+					'order_amount'      => $descriptor->amount,
 				)
 			);
 		} catch ( Exception $e ) {

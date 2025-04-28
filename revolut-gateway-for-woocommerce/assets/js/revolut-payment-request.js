@@ -426,12 +426,7 @@ jQuery(function ($) {
             )
           }
 
-          return getRevolutOrderPublicId().then(publicId => {
-            if (wc_revolut_payment_request_params.is_cart_page) {
-              return updatePaymentTotal().then(() => ({ publicId }))
-            }
-            return { publicId }
-          })
+          return getRevolutOrderPublicId().then(publicId => ({publicId}))
         }),
       buttonStyle: {
         cashbackCurrency: wc_revolut_payment_request_params.currency,
@@ -542,10 +537,6 @@ jQuery(function ($) {
   }
   function getRevolutOrderPublicId() {
     return new Promise((resolve, reject) => {
-      if (wc_revolut_payment_request_params.revolut_public_id) {
-        return resolve(wc_revolut_payment_request_params.revolut_public_id)
-      }
-
       sendRequest(getAjaxURL('get_express_checkout_params'), {
         security: wc_revolut_payment_request_params.nonce.get_express_checkout_params,
       }).then(order => {

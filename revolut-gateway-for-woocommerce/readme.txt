@@ -3,7 +3,7 @@ Contributors: revolutbusiness
 Tags: revolut, revolut business, revolut pay, payments, gateway
 Requires at least: 4.4
 Tested up to: 6.6.2
-Stable tag: 4.18.11
+Stable tag: 4.19.1
 Requires PHP: 7.2
 License: GPLv2 or later
 License URI: http://www.apache.org/licenses/LICENSE-2.0
@@ -98,6 +98,13 @@ To start accepting payments from your customers at great rates, install the plug
 5. The Revolut Pay Button settings
 
 == Changelog ==
+= 4.19.1 =
+* Fixed an issue in express checkout flow where changing the product variation did not update the order total
+
+= 4.19.0 =
+* Added compatibility with Woocommerce Shipment Tracking plugin for proof of shipment collection
+* Disabled ApplePay billing address requirement in checkout page
+
 = 4.18.11 =
 * Adjusted reward banner heading and subtext
 
