@@ -117,6 +117,13 @@
   flex-shrink: 0 !important
 }
 
+.revolut-scheme-icons-wrapper {
+  display:flex;
+  flex-wrap: wrap; 
+  justify-content:flex-end; 
+  gap: 2px
+}
+
 .revolut-pay-label-title-wrapper {
   display: flex;
   align-items: center;
@@ -149,10 +156,11 @@
 }
 
 .revolut-label-informational-icon {
-  margin-left: 5px;
+  margin: 0px 5px 0px 5px;
   flex: 20;
   display: flex;
   align-items: center;
+  min-width: 30%;
 }
 
 .revolut-pay-label-icons {

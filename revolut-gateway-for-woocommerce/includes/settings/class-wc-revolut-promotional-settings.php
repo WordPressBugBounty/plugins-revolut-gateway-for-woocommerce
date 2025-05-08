@@ -85,7 +85,7 @@ class WC_Revolut_Promotional_Settings extends WC_Revolut_Settings_API {
 					'disabled' => __( 'Disabled', 'revolut-gateway-for-woocommerce' ),
 
 				),
-				'default'     => 'link',
+				'default'     => 'cashback',
 			),
 		);
 	}
