@@ -149,6 +149,7 @@ class WC_Gateway_Revolut_Blocks_Support extends Automattic\WooCommerce\Blocks\Pa
 						'points_banner_enabled' => $this->revolut_pay_gateway->points_banner_available(),
 						'label_icon_variant'    => $this->revolut_pay_gateway->promotional_settings->revolut_pay_label_icon_variant(),
 					),
+					'styles'              => $this->revolut_pay_gateway->get_revolut_pay_button_styles(),
 				),
 			);
 		} catch ( Throwable $e ) {
@@ -172,6 +173,7 @@ class WC_Gateway_Revolut_Blocks_Support extends Automattic\WooCommerce\Blocks\Pa
 					'title'               => $this->payment_request_gateway->title,
 					'can_make_payment'    => $this->payment_request_gateway->page_supported(),
 					'is_cart'             => is_cart(),
+					'styles'              => $this->payment_request_gateway->get_prb_button_styles(),
 				),
 			);
 

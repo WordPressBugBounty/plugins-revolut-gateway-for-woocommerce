@@ -91,6 +91,17 @@ abstract class WC_Payment_Gateway_Revolut extends WC_Payment_Gateway_CC {
 	protected static $processing_save_shipments_information_hook = false;
 
 	/**
+	 * Payment buttons styling height variants
+	 *
+	 * @var array
+	 */
+	protected $payment_buttons_style_height = array(
+		'small'   => '40px',
+		'default' => '', // button will determine the height.
+		'large'   => '58px',
+	);
+
+	/**
 	 * Constructor
 	 */
 	public function __construct() {

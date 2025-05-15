@@ -318,11 +318,6 @@ jQuery(function ($) {
       return false
     }
 
-    // remove duplicated instances
-    if ($('.wc-revolut-payment-request-instance').length > 1) {
-      $('.wc-revolut-payment-request-instance').not(':last').remove()
-    }
-
     const { paymentRequest } = RevolutCheckout.payments({
       locale: wc_revolut_payment_request_params.locale,
       publicToken: wc_revolut_payment_request_params.publicToken,
@@ -380,10 +375,10 @@ jQuery(function ($) {
         displayErrorMessage(errorMessage)
       },
       buttonStyle: {
-        action: wc_revolut_payment_request_params.payment_request_button_type,
-        size: wc_revolut_payment_request_params.payment_request_button_size,
-        variant: wc_revolut_payment_request_params.payment_request_button_theme,
-        radius: wc_revolut_payment_request_params.payment_request_button_radius,
+        action: revolut_payment_request_button_style.payment_request_button_type,
+        height: revolut_payment_request_button_style.payment_request_button_height,
+        variant: revolut_payment_request_button_style.payment_request_button_theme,
+        radius: revolut_payment_request_button_style.payment_request_button_radius,
       },
     })
 
@@ -399,11 +394,6 @@ jQuery(function ($) {
   function initRevolutPayExpressCheckoutButton() {
     if ($('#revolut-pay-express-checkout-button').length < 1) {
       return false
-    }
-
-    // remove duplicated instances
-    if ($('.wc-revolut-pay-express-checkout-instance').length > 1) {
-      $('.wc-revolut-pay-express-checkout-instance').not(':last').remove()
     }
 
     const { revolutPay } = RevolutCheckout.payments({
@@ -426,13 +416,13 @@ jQuery(function ($) {
             )
           }
 
-          return getRevolutOrderPublicId().then(publicId => ({publicId}))
+          return getRevolutOrderPublicId().then(publicId => ({ publicId }))
         }),
       buttonStyle: {
         cashbackCurrency: wc_revolut_payment_request_params.currency,
-        variant: wc_revolut_payment_request_params.revolut_pay_button_theme,
-        size: wc_revolut_payment_request_params.revolut_pay_button_size,
-        radius: wc_revolut_payment_request_params.revolut_pay_button_radius,
+        variant: revolut_pay_button_style.revolut_pay_button_theme,
+        height: revolut_pay_button_style.revolut_pay_button_height,
+        radius: revolut_pay_button_style.revolut_pay_button_radius,
       },
       mobileRedirectUrls: {
         success: wc_revolut_payment_request_params.redirect_url,

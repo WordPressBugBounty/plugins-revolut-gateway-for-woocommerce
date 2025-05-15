@@ -18,6 +18,14 @@ class WC_Gateway_Revolut_Pay extends WC_Payment_Gateway_Revolut {
 	const GATEWAY_ID = 'revolut_pay';
 
 	/**
+	 * Static var indicating weather woocommerce_after_add_to_cart_quantity hook is triggered or not
+	 *
+	 * @var boolean
+	 */
+	private static $processing_woocommerce_after_add_to_cart_quantity_hook = false;
+
+
+	/**
 	 * Mock Shipping Address for testing
 	 *
 	 * @var array
@@ -255,7 +263,9 @@ class WC_Gateway_Revolut_Pay extends WC_Payment_Gateway_Revolut {
 	 * Display payment request button html
 	 */
 	public function display_revolut_pay_button() {
-		if ( ! $this->page_supported() ) {
+
+		if ( ! $this->page_supported() ||
+			self::$processing_woocommerce_after_add_to_cart_quantity_hook ) {
 			return false;
 		}
 
@@ -272,6 +282,8 @@ class WC_Gateway_Revolut_Pay extends WC_Payment_Gateway_Revolut {
 			<?php endif; ?>
 		</div>
 		<?php
+
+		self::$processing_woocommerce_after_add_to_cart_quantity_hook = true;
 	}
 
 	/**
@@ -368,16 +380,17 @@ class WC_Gateway_Revolut_Pay extends WC_Payment_Gateway_Revolut {
 					'light-outlined' => __( 'Light-Outline', 'revolut-gateway-for-woocommerce' ),
 				),
 			),
-			'revolut_pay_button_size'      => array(
+			'revolut_pay_button_height'    => array(
 				'title'       => __( 'Revolut Pay Button Size', 'revolut-gateway-for-woocommerce' ),
 				'label'       => __( 'Button Size', 'revolut-gateway-for-woocommerce' ),
 				'type'        => 'select',
 				'description' => __( 'Select the button size you would like to show.', 'revolut-gateway-for-woocommerce' ),
-				'default'     => 'large',
+				'default'     => 'default',
 				'desc_tip'    => true,
 				'options'     => array(
-					'large' => __( 'Large', 'revolut-gateway-for-woocommerce' ),
-					'small' => __( 'Small', 'revolut-gateway-for-woocommerce' ),
+					'small'   => __( 'Small', 'revolut-gateway-for-woocommerce' ),
+					'default' => __( 'Default', 'revolut-gateway-for-woocommerce' ),
+					'large'   => __( 'Large', 'revolut-gateway-for-woocommerce' ),
 				),
 			),
 			'revolut_pay_button_radius'    => array(
@@ -495,9 +508,13 @@ class WC_Gateway_Revolut_Pay extends WC_Payment_Gateway_Revolut {
 	 * @return array
 	 */
 	public function get_revolut_pay_button_styles() {
+
+		$merchant_selected_button_height = $this->get_option( 'revolut_pay_button_height', 'default' );
+		$revolut_pay_button_height       = $this->payment_buttons_style_height[ $merchant_selected_button_height ];
+
 		return array(
 			'revolut_pay_button_theme'  => $this->get_option( 'revolut_pay_button_theme' ),
-			'revolut_pay_button_size'   => $this->get_option( 'revolut_pay_button_size' ),
+			'revolut_pay_button_height' => $revolut_pay_button_height,
 			'revolut_pay_button_radius' => $this->get_option( 'revolut_pay_button_radius' ),
 			'revolut_pay_origin_url'    => str_replace( array( 'https://', 'http://' ), '', get_site_url() ),
 		);

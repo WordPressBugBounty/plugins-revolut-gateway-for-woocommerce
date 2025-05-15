@@ -305,25 +305,16 @@ trait WC_Gateway_Revolut_Express_Checkout_Helper_Trait {
 	 */
 	public function get_wc_revolut_payment_request_params() {
 		try {
-			$currency                         = get_woocommerce_currency();
-			$revolut_payment_request_settings = get_option( 'woocommerce_revolut_payment_request_settings', array() );
-			$revolut_pay_settings             = get_option( 'woocommerce_revolut_pay_settings', array() );
+			$currency = get_woocommerce_currency();
 
 			return array(
-				'currency'                      => $currency,
-				'locale'                        => $this->get_lang_iso_code(),
-				'publicToken'                   => $this->get_merchant_public_api_key(),
-				'ajax_url'                      => WC_AJAX::get_endpoint( '%%wc_revolut_gateway_ajax_endpoint%%' ),
-				'revolut_pay_origin_url'        => str_replace( array( 'https://', 'http://' ), '', get_site_url() ),
-				'revolut_pay_button_theme'      => ! empty( $revolut_pay_settings['revolut_pay_button_theme'] ) ? $revolut_pay_settings['revolut_pay_button_theme'] : '',
-				'revolut_pay_button_size'       => ! empty( $revolut_pay_settings['revolut_pay_button_size'] ) ? $revolut_pay_settings['revolut_pay_button_size'] : '',
-				'revolut_pay_button_radius'     => ! empty( $revolut_pay_settings['revolut_pay_button_radius'] ) ? $revolut_pay_settings['revolut_pay_button_radius'] : '',
-				'payment_request_button_type'   => ! empty( $revolut_payment_request_settings['payment_request_button_type'] ) ? $revolut_payment_request_settings['payment_request_button_type'] : '',
-				'payment_request_button_theme'  => ! empty( $revolut_payment_request_settings['payment_request_button_theme'] ) ? $revolut_payment_request_settings['payment_request_button_theme'] : '',
-				'payment_request_button_radius' => ! empty( $revolut_payment_request_settings['payment_request_button_radius'] ) ? $revolut_payment_request_settings['payment_request_button_radius'] : '',
-				'payment_request_button_size'   => ! empty( $revolut_payment_request_settings['payment_request_button_size'] ) ? $revolut_payment_request_settings['payment_request_button_size'] : '',
-				'shipping_options'              => array(),
-				'nonce'                         => array(
+				'currency'               => $currency,
+				'locale'                 => $this->get_lang_iso_code(),
+				'publicToken'            => $this->get_merchant_public_api_key(),
+				'ajax_url'               => WC_AJAX::get_endpoint( '%%wc_revolut_gateway_ajax_endpoint%%' ),
+				'revolut_pay_origin_url' => str_replace( array( 'https://', 'http://' ), '', get_site_url() ),
+				'shipping_options'       => array(),
+				'nonce'                  => array(
 					'payment'                     => wp_create_nonce( 'wc-revolut-payment-request' ),
 					'shipping'                    => wp_create_nonce( 'wc-revolut-payment-request-shipping' ),
 					'update_shipping'             => wp_create_nonce( 'wc-revolut-update-shipping-method' ),
@@ -341,13 +332,13 @@ trait WC_Gateway_Revolut_Express_Checkout_Helper_Trait {
 					'clear_cart'                  => wp_create_nonce( 'wc-revolut-clear-cart' ),
 					'process_payment_result'      => wp_create_nonce( 'wc-revolut-process-payment-result' ),
 				),
-				'is_product_page'               => $this->is_product(),
-				'redirect_url'                  => $this->get_redirect_url(),
-				'is_cart_page'                  => is_cart(),
-				'product'                       => $this->get_product_data(),
-				'shipping_required'             => $this->is_shipping_required(),
-				'free_shipping_option'          => self::$free_shipping,
-				'error_messages'                => array(
+				'is_product_page'        => $this->is_product(),
+				'redirect_url'           => $this->get_redirect_url(),
+				'is_cart_page'           => is_cart(),
+				'product'                => $this->get_product_data(),
+				'shipping_required'      => $this->is_shipping_required(),
+				'free_shipping_option'   => self::$free_shipping,
+				'error_messages'         => array(
 					'checkout_general'   => __( 'Something went wrong while processing the order. Please try again', 'revolut-gateway-for-woocommerce' ),
 					'cart_create_failed' => __( 'An error occurred while creating WooCommerce cart', 'revolut-gateway-for-woocommerce' ),
 				),

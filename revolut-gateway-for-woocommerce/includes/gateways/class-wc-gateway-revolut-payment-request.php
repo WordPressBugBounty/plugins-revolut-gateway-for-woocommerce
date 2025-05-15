@@ -20,6 +20,14 @@ if ( ! defined( 'ABSPATH' ) ) {
 class WC_Gateway_Revolut_Payment_Request extends WC_Payment_Gateway_Revolut {
 
 	const GATEWAY_ID = 'revolut_payment_request';
+
+	/**
+	 * Static var indicating weather woocommerce_after_add_to_cart_quantity hook is triggered or not
+	 *
+	 * @var boolean
+	 */
+	private static $processing_woocommerce_after_add_to_cart_quantity_hook = false;
+
 	/**
 	 * Constructor
 	 */
@@ -200,16 +208,17 @@ class WC_Gateway_Revolut_Payment_Request extends WC_Payment_Gateway_Revolut {
 					'large' => __( 'Large', 'revolut-gateway-for-woocommerce' ),
 				),
 			),
-			'payment_request_button_size'      => array(
+			'payment_request_button_height'    => array(
 				'title'       => __( 'Payment Request Button Size', 'revolut-gateway-for-woocommerce' ),
 				'label'       => __( 'Button Size', 'revolut-gateway-for-woocommerce' ),
 				'type'        => 'select',
 				'description' => __( 'Select the button size you would like to show.', 'revolut-gateway-for-woocommerce' ),
-				'default'     => 'large',
+				'default'     => 'default',
 				'desc_tip'    => true,
 				'options'     => array(
-					'small' => __( 'Small', 'revolut-gateway-for-woocommerce' ),
-					'large' => __( 'Large', 'revolut-gateway-for-woocommerce' ),
+					'small'   => __( 'Small', 'revolut-gateway-for-woocommerce' ),
+					'default' => __( 'Default', 'revolut-gateway-for-woocommerce' ),
+					'large'   => __( 'Large', 'revolut-gateway-for-woocommerce' ),
 				),
 			),
 			'payment_request_button_locations' => array(
@@ -252,28 +261,24 @@ class WC_Gateway_Revolut_Payment_Request extends WC_Payment_Gateway_Revolut {
 	 * Display payment request button html
 	 */
 	public function display_payment_request_button_html() {
-		if ( ! $this->page_supported() ) {
-			return false;
-		}
 
-		if ( $this->is_revolut_pay_fast_checkout_active() ) {
-			?>
-			<div class="wc-revolut-payment-request-instance" id="wc-revolut-payment-request-container" style="clear:both;">
-			<div id="revolut-payment-request-button"></div>
-			<p id="wc-revolut-payment-request-button-separator" style="margin-top:1.5em;text-align:center;">&mdash;&nbsp;<?php echo esc_html( __( 'OR', 'revolut-gateway-for-woocommerce' ) ); ?>
-				&nbsp;&mdash;</p>
-		</div>
-			<?php
-			return;
+		if ( ! $this->page_supported() ||
+		self::$processing_woocommerce_after_add_to_cart_quantity_hook ) {
+			return false;
 		}
 
 		?>
 		<div class="wc-revolut-payment-request-instance" id="wc-revolut-payment-request-container" style="clear:both;padding-top:1.5em;">
 			<div id="revolut-payment-request-button"></div>
-			<p id="wc-revolut-payment-request-button-separator" style="margin-top:1.5em;text-align:center;">&mdash;&nbsp;<?php echo esc_html( __( 'OR', 'revolut-gateway-for-woocommerce' ) ); ?>
-				&nbsp;&mdash;</p>
+			<?php if ( $this->is_revolut_pay_fast_checkout_active() ) : ?>
+				<p id="wc-revolut-payment-request-button-separator" style="text-align:center;margin-top:1.5em;">
+					&mdash;&nbsp;<?php echo esc_html( __( 'OR', 'revolut-gateway-for-woocommerce' ) ); ?>&nbsp;&mdash;
+				</p>
+			<?php endif; ?>
 		</div>
 		<?php
+
+		self::$processing_woocommerce_after_add_to_cart_quantity_hook = true;
 	}
 
 	/**
@@ -591,12 +596,16 @@ class WC_Gateway_Revolut_Payment_Request extends WC_Payment_Gateway_Revolut {
 	 * @return array
 	 */
 	public function get_prb_button_styles() {
+
+		$merchant_selected_button_height = $this->get_option( 'payment_request_button_height', 'default' );
+		$payment_request_button_height   = $this->payment_buttons_style_height[ $merchant_selected_button_height ];
+
 		return array(
 			'payment_request_button_title'  => $this->get_option( 'title' ),
 			'payment_request_button_type'   => $this->get_option( 'payment_request_button_type' ),
 			'payment_request_button_theme'  => $this->get_option( 'payment_request_button_theme' ),
 			'payment_request_button_radius' => $this->get_option( 'payment_request_button_radius' ),
-			'payment_request_button_size'   => $this->get_option( 'payment_request_button_size' ),
+			'payment_request_button_height' => $payment_request_button_height,
 		);
 	}
 
@@ -606,6 +615,12 @@ class WC_Gateway_Revolut_Payment_Request extends WC_Payment_Gateway_Revolut {
 	 * @return void
 	 */
 	public function localize_prb_scripts() {
+		wp_localize_script(
+			WC_REVOLUT_STANDARD_CHECKOUT_SCRIPT_HANDLE,
+			'revolut_payment_request_button_style',
+			$this->get_prb_button_styles()
+		);
+
 		wp_localize_script(
 			WC_REVOLUT_STANDARD_CHECKOUT_SCRIPT_HANDLE,
 			'revolut_payment_request_button_style',

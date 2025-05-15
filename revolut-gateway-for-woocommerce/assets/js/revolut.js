@@ -493,7 +493,7 @@ jQuery(function ($) {
       let address = getCheckoutFormData()
       const {
         revolut_pay_button_theme,
-        revolut_pay_button_size,
+        revolut_pay_button_height,
         revolut_pay_button_radius,
         revolut_pay_origin_url,
       } = typeof revolut_pay_button_style !== 'undefined' ? revolut_pay_button_style : {}
@@ -515,7 +515,7 @@ jQuery(function ($) {
         buttonStyle: {
           cashbackCurrency: currentPaymentMethod.currency,
           variant: revolut_pay_button_theme,
-          size: revolut_pay_button_size,
+          height: revolut_pay_button_height,
           radius: revolut_pay_button_radius,
         },
         customer: {
@@ -565,7 +565,7 @@ jQuery(function ($) {
         },
         buttonStyle: {
           variant: revolut_pay_button_theme,
-          size: revolut_pay_button_size,
+          height: revolut_pay_button_height,
           radius: revolut_pay_button_radius,
         },
       })
@@ -585,7 +585,7 @@ jQuery(function ($) {
 
     const {
       payment_request_button_type,
-      payment_request_button_size,
+      payment_request_button_height,
       payment_request_button_radius,
       payment_request_button_theme,
     } =
@@ -632,7 +632,7 @@ jQuery(function ($) {
       },
       buttonStyle: {
         action: payment_request_button_type,
-        size: payment_request_button_size,
+        height: payment_request_button_height,
         variant: payment_request_button_theme,
         radius: payment_request_button_radius,
       },
