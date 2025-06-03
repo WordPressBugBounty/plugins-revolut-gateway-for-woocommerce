@@ -103,6 +103,8 @@ class WC_Revolut_Payment_Ajax_Controller {
 				$revolut_gateway = new WC_Gateway_Revolut_Pay();
 			} elseif ( 'revolut_payment_request' === $selected_gateway ) {
 				$revolut_gateway = new WC_Gateway_Revolut_Payment_Request();
+			} elseif ( 'revolut_pay_by_bank' === $selected_gateway ) {
+				$revolut_gateway = new WC_Gateway_Revolut_Pay_By_Bank();
 			}
 
 			$result = $revolut_gateway->process_payment(

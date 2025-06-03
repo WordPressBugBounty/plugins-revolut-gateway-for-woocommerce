@@ -118,7 +118,6 @@ abstract class WC_Payment_Gateway_Revolut extends WC_Payment_Gateway_CC {
 		$this->icon       = $this->get_icon();
 
 		add_filter( 'query_vars', array( $this, 'revolut_plugin_public_query_vars' ) );
-		add_filter( 'wc_revolut_settings_nav_tabs', array( $this, 'admin_nav_tab' ) );
 		add_action( 'woocommerce_update_options_payment_gateways_' . $this->id, array( $this, 'process_admin_options' ) );
 		add_action( 'woocommerce_checkout_order_processed', array( $this, 'woocommerce_checkout_revolut_order_processed' ), 300, 3 );
 		add_action( 'woocommerce_order_status_changed', array( $this, 'order_action_from_woocommerce' ), 300, 3 );
@@ -994,7 +993,8 @@ abstract class WC_Payment_Gateway_Revolut extends WC_Payment_Gateway_CC {
 		$wc_order_id = $wc_order->get_id();
 
 		// verify that the order was paid.
-		$mode = $this->api_settings->get_option( 'payment_action' );
+		$mode                  = $this->api_settings->get_option( 'payment_action' );
+		$is_pay_by_bank_method = WC_Gateway_Revolut_Pay_By_Bank::GATEWAY_ID === $this->id;
 
 		for ( $i = 0; $i < WC_REVOLUT_FETCH_API_ORDER_ATTEMPTS; $i++ ) {
 			if ( isset( $revolut_order_id ) && ! empty( $revolut_order_id ) ) {
@@ -1007,6 +1007,13 @@ abstract class WC_Payment_Gateway_Revolut extends WC_Payment_Gateway_CC {
 						$wc_order->save();
 						$wc_order->payment_complete( $revolut_order_id );
 						$wc_order->add_order_note( 'Payment has been successfully captured (Order ID: ' . $revolut_order_id . ').' );
+						return true;
+					} elseif ( 'AUTHORISED' === $order['state'] && $is_pay_by_bank_method ) {
+						$wc_order->add_order_note(
+							'Pay by Bank payments can take up to 1 business day to complete. 
+                             If the order is not moved to the "Payment accepted" state after 1 business day, 
+                             merchants should check their Revolut account to verify that this payment was taken, and may need to reach out the customer if it was not.'
+						);
 						return true;
 					} elseif ( 'AUTHORISED' === $order['state'] && ( 'authorize' === $mode || $this->api_client->is_dev_mode() ) ) {
 						return true;
@@ -1778,6 +1785,7 @@ abstract class WC_Payment_Gateway_Revolut extends WC_Payment_Gateway_CC {
 				'order_key'                 => $this->wc_revolut_get_current_order_key(),
 				'promotion_banner_html'     => $this->get_confirmation_page_promotional_banners(),
 				'informational_banner_data' => $this->get_informational_banner_data(),
+				'bank_brands'               => $this->fetch_bank_brands(),
 				'nonce'                     => array(
 					'process_payment_result' => wp_create_nonce( 'wc-revolut-process-payment-result' ),
 					'billing_info'           => wp_create_nonce( 'wc-revolut-get-billing-info' ),

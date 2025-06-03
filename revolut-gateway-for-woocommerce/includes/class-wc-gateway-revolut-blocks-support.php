@@ -36,6 +36,13 @@ class WC_Gateway_Revolut_Blocks_Support extends Automattic\WooCommerce\Blocks\Pa
 	/**
 	 * Gateway.
 	 *
+	 *  @var WC_Gateway_Revolut_Pay_By_Bank
+	 */
+	private $revolut_pay_by_bank;
+
+	/**
+	 * Gateway.
+	 *
 	 *  @var WC_Gateway_Revolut_Payment_Request
 	 */
 	private $payment_request_gateway;
@@ -52,11 +59,13 @@ class WC_Gateway_Revolut_Blocks_Support extends Automattic\WooCommerce\Blocks\Pa
 	 *
 	 * @param WC_Gateway_Revolut_CC              $card_gateway CC Gateway object.
 	 * @param WC_Gateway_Revolut_Pay             $revolut_pay_gateway Revolut Pay Gateway object.
+	 * @param WC_Gateway_Revolut_Pay_By_Bank     $revolut_pay_by_bank Revolut Pay By Bank Gateway object.
 	 * @param WC_Gateway_Revolut_Payment_Request $payment_request_gateway Payment request Gateway object.
 	 */
-	public function __construct( $card_gateway, $revolut_pay_gateway, $payment_request_gateway ) {
+	public function __construct( $card_gateway, $revolut_pay_gateway, $revolut_pay_by_bank, $payment_request_gateway ) {
 		$this->card_gateway            = $card_gateway;
 		$this->revolut_pay_gateway     = $revolut_pay_gateway;
+		$this->revolut_pay_by_bank     = $revolut_pay_by_bank;
 		$this->payment_request_gateway = $payment_request_gateway;
 		$this->name                    = 'revolut';
 		add_action( 'woocommerce_rest_checkout_process_payment_with_context', array( $this, 'prepare_gateway_for_processing' ), 10, 2 );
@@ -94,6 +103,7 @@ class WC_Gateway_Revolut_Blocks_Support extends Automattic\WooCommerce\Blocks\Pa
 			$payment_methods_data = array(
 				'revolut_cc_data'              => $this->revolut_cc_payment_method_data(),
 				'revolut_pay_data'             => $this->revolut_pay_payment_method_data(),
+				'revolut_pay_by_bank_data'     => $this->revolut_pay_by_bank_payment_method_data(),
 				'revolut_payment_request_data' => $this->revolut_payment_request_method_data(),
 			);
 			return array_merge(
@@ -101,6 +111,7 @@ class WC_Gateway_Revolut_Blocks_Support extends Automattic\WooCommerce\Blocks\Pa
 				$this->get_common_payment_data(),
 			);
 	}
+
 	/**
 	 * Returns gateway fields
 	 */
@@ -131,6 +142,29 @@ class WC_Gateway_Revolut_Blocks_Support extends Automattic\WooCommerce\Blocks\Pa
 		}
 	}
 
+
+	/**
+	 * Returns payment request fields
+	 */
+	private function revolut_pay_by_bank_payment_method_data() {
+		try {
+			return array_merge(
+				get_option( 'woocommerce_revolut_pay_by_bank_settings', array() ),
+				array(
+					'pay_by_bank_brands'  => $this->revolut_pay_by_bank->fetch_bank_brands(),
+					'payment_method_name' => $this->revolut_pay_by_bank->id,
+					'title'               => $this->revolut_pay_by_bank->title,
+					'can_make_payment'    => $this->revolut_pay_by_bank->is_available(),
+				),
+			);
+		} catch ( Throwable $e ) {
+			$this->revolut_pay_gateway->log_error( 'revolut_pay_payment_method_data : ' . $e->getMessage() );
+			return array(
+				'can_make_payment' => false,
+			);
+		}
+
+	}
 
 	/**
 	 * Returns payment request fields
@@ -259,6 +293,9 @@ class WC_Gateway_Revolut_Blocks_Support extends Automattic\WooCommerce\Blocks\Pa
 				break;
 			case $this->revolut_pay_gateway->id:
 				$this->revolut_pay_gateway->blocks_checkout_processor( $context, $result );
+				break;
+			case $this->revolut_pay_by_bank->id:
+				$this->revolut_pay_by_bank->blocks_checkout_processor( $context, $result );
 				break;
 			case $this->payment_request_gateway->id:
 				$this->payment_request_gateway->blocks_checkout_processor( $context, $result );

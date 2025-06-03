@@ -89,7 +89,7 @@ class WC_Revolut_Settings_API extends WC_Settings_API {
 					'sandbox' => __( 'Sandbox', 'revolut-gateway-for-woocommerce' ),
 					'live'    => __( 'Live', 'revolut-gateway-for-woocommerce' ),
 					// phpcs:ignore
-		//  'dev' => __('Dev', 'revolut-gateway-for-woocommerce'),
+		 			// 'dev' => __('Dev', 'revolut-gateway-for-woocommerce'),
 				),
 			),
 			'api_key_sandbox'              => array(
@@ -101,7 +101,7 @@ class WC_Revolut_Settings_API extends WC_Settings_API {
 				'class'       => 'enabled-sandbox',
 			),
 			// phpcs:ignore
-			//  'api_key_dev' => array(
+			// 'api_key_dev' => array(
 			// 'title'       => __( 'API Key Dev' ),
 			// 'description' => __( 'API Key from your Merchant settings on Revolut.', 'revolut-gateway-for-woocommerce' ),
 			// 'desc_tip'    => true,

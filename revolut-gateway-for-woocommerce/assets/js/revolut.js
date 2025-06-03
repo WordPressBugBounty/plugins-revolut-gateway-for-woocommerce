@@ -2,6 +2,7 @@ jQuery(function ($) {
   const PAYMENT_METHOD = {
     CreditCard: 'revolut_cc',
     RevolutPay: 'revolut_pay',
+    RevolutPayByBank: 'revolut_pay_by_bank',
     RevolutPaymentRequest: 'revolut_payment_request', // Apple Pay / Google Pay
   }
 
@@ -26,6 +27,7 @@ jQuery(function ($) {
   let $order_review = $('form#order_review')
   let $payment_save = $('form#add_payment_method')
   let instance = null
+  let payByBankInstance = null
   let cardStatus = null
   let wc_order_id = 0
   let paymentRequestButtonResult = false
@@ -295,7 +297,8 @@ jQuery(function ($) {
     return (
       currentPaymentMethod === PAYMENT_METHOD.CreditCard ||
       currentPaymentMethod === PAYMENT_METHOD.RevolutPaymentRequest ||
-      currentPaymentMethod === PAYMENT_METHOD.RevolutPay
+      currentPaymentMethod === PAYMENT_METHOD.RevolutPay ||
+      currentPaymentMethod === PAYMENT_METHOD.RevolutPayByBank
     )
   }
 
@@ -418,7 +421,10 @@ jQuery(function ($) {
    * Update widget
    */
   function handleUpdate() {
+    showPayByBankLogos()
+
     const currentPaymentMethod = getPaymentMethod()
+
     $('.payment_method_revolut_pay')
       .find('label')
       .addClass('notranslate')
@@ -571,6 +577,8 @@ jQuery(function ($) {
       })
     } else if (currentPaymentMethod.methodId === PAYMENT_METHOD.RevolutPaymentRequest) {
       initPaymentRequestButton(currentPaymentMethod.target, currentPaymentMethod.publicId)
+    } else if (currentPaymentMethod.methodId === PAYMENT_METHOD.RevolutPayByBank) {
+      initPayByBankWidget()
     }
   }
 
@@ -671,6 +679,94 @@ jQuery(function ($) {
         .html()
         .replace('Digital Wallet (ApplePay/GooglePay)', methodName),
     )
+  }
+
+  showPayByBankLogos()
+
+  function showPayByBankLogos() {
+    if (
+      $("label[for='payment_method_revolut_pay_by_bank']").length < 1 ||
+      !wc_revolut.bank_brands
+    ) {
+      return
+    }
+
+    const { institutions, popular_institution_ids } = wc_revolut.bank_brands
+
+    if (!institutions || !popular_institution_ids) {
+      return
+    }
+
+    const popular = popular_institution_ids
+      .map(id =>
+        institutions.find(bank => Object.values(bank.details)[0].institution_id === id),
+      )
+      .filter(Boolean)
+
+    const nonPopular = institutions.filter(
+      bank =>
+        !popular_institution_ids.includes(Object.values(bank.details)[0].institution_id),
+    )
+
+    const bankList = [...popular, ...nonPopular]
+
+    banks_info = {
+      firstFive: bankList.slice(0, 5),
+      remainingCount: Math.max(0, bankList.length - 5),
+    }
+
+    let bank_logos = ''
+
+    banks_info.firstFive.map(bank => {
+      bank_logos += `<img src="${bank.logo.value}">`
+    })
+
+    $('.payment_method_revolut_pay_by_bank').css({ padding: 0 })
+    $("label[for='payment_method_revolut_pay_by_bank'] img").remove()
+
+    $("label[for='payment_method_revolut_pay_by_bank']").append(bank_logos)
+
+    return {
+      firstFive: bankList.slice(0, 5),
+      remainingCount: Math.max(0, bankList.length - 5),
+    }
+  }
+
+  function initPayByBankWidget() {
+    const currentPaymentMethod = getPaymentMethod()
+
+    if (currentPaymentMethod.methodId != PAYMENT_METHOD.RevolutPayByBank) {
+      return
+    }
+
+    if (payByBankInstance !== null) {
+      payByBankInstance.destroy()
+    }
+
+    instance = RevolutCheckout.payments({
+      locale: currentPaymentMethod.locale,
+      publicToken: currentPaymentMethod.merchantPublicKey,
+    })
+
+    payByBankInstance = instance.payByBank({
+      instantOnly: true,
+      createOrder: () => Promise.resolve({ publicId: currentPaymentMethod.publicId }),
+      onError: errorMsg => {
+        if (errorMsg.error) {
+          handlePaymentResult(errorMsg.error)
+        } else {
+          handleError(errorMsg)
+        }
+      },
+      onCancel: handleCancel,
+      onSuccess: () => {
+        handlePaymentResult()
+      },
+    })
+  }
+
+  function showPayByBank() {
+    payByBankInstance.show()
   }
 
   /**
@@ -774,6 +870,17 @@ jQuery(function ($) {
     return false
   }
 
+  function handlePayByBankSubmit() {
+    startProcessing()
+    submitWooCommerceOrder().then(function (valid) {
+      if (valid) {
+        showPayByBank()
+      }
+    })
+
+    return false
+  }
+
   /**
    * Validate checkout form entries
    * @returns {Promise(boolean)}
@@ -787,7 +894,6 @@ jQuery(function ($) {
       }
 
       const currentPaymentMethod = getPaymentMethod()
-
       $.ajax({
         type: 'POST',
         url: wc_checkout_params.checkout_url,
@@ -872,6 +978,14 @@ jQuery(function ($) {
         startProcessing()
         if (payWithPaymentToken()) {
           return handlePaymentResult()
+        }
+
+        const currentPaymentMethod = getPaymentMethod()
+
+        if (currentPaymentMethod.methodId === PAYMENT_METHOD.RevolutPayByBank) {
+          initPayByBankWidget()
+          showPayByBank()
+          return
         }
 
         getBillingInfo().then(function (billing_info) {
@@ -1130,6 +1244,8 @@ jQuery(function ($) {
       target = document.getElementById('woocommerce-revolut-pay-element')
     } else if (currentPaymentMethod === PAYMENT_METHOD.RevolutPaymentRequest) {
       target = document.getElementById('woocommerce-revolut-payment-request-element')
+    } else if (currentPaymentMethod === PAYMENT_METHOD.RevolutPayByBank) {
+      target = document.getElementById('woocommerce-revolut-pay-by-bank-element')
     }
 
     if (target == null) {
@@ -1194,6 +1310,7 @@ jQuery(function ($) {
   }
 
   $form.on('checkout_place_order_revolut_cc', handleCreditCardSubmit)
+  $form.on('checkout_place_order_revolut_pay_by_bank', handlePayByBankSubmit)
 
   $order_review.on('submit', function (e) {
     if (isRevolutPaymentMethodSelected() && $('.revolut_public_id').length === 0) {

@@ -737,15 +737,17 @@ trait WC_Gateway_Revolut_Helper_Trait {
 	/**
 	 * Check Merchant Account features.
 	 *
+	 * @param String $feature_flag Fleature flag name.
+	 *
 	 * @return bool
 	 */
-	public function check_feature_support() {
+	public function check_feature_support( $feature_flag ) {
 		try {
 			$this->api_client->set_public_key( $this->get_merchant_public_api_key() );
 			$merchant_features = $this->api_client->get( '/merchant', true );
 
 			return isset( $merchant_features['features'] ) && is_array( $merchant_features['features'] ) && in_array(
-				WC_GATEWAY_REVPAY_INDEX,
+				$feature_flag,
 				$merchant_features['features'],
 				true
 			);
@@ -1018,6 +1020,7 @@ trait WC_Gateway_Revolut_Helper_Trait {
 			if ( ! $available_payment_methods ) {
 				$available_payment_methods = $this->fetch_available_payment_methods_and_brand_logos( $amount, $currency )['payment_methods'];
 			}
+
 			return $available_payment_methods;
 
 		} catch ( Exception $e ) {
@@ -1045,18 +1048,22 @@ trait WC_Gateway_Revolut_Helper_Trait {
 	 */
 	public function is_payment_method_available( $payment_method ) {
 		try {
+			$total = 1;
+
 			if ( WC()->cart ) {
-				$total                     = WC()->cart->get_total( '' );
-				$currency                  = get_woocommerce_currency();
-				$total                     = $this->get_revolut_order_total( $total, $currency );
-				$available_payment_methods = $this->get_available_payment_methods( $total, $currency );
-
-				if ( is_array( $payment_method ) ) {
-					return count( array_intersect( $payment_method, $available_payment_methods ) );
-				}
-
-				return in_array( $payment_method, $available_payment_methods, true );
+				$total = WC()->cart->get_total( '' );
 			}
+
+			$currency = get_woocommerce_currency();
+			$total    = $this->get_revolut_order_total( $total, $currency );
+
+			$available_payment_methods = $this->get_available_payment_methods( $total, $currency );
+
+			if ( is_array( $payment_method ) ) {
+				return count( array_intersect( $payment_method, $available_payment_methods ) );
+			}
+
+			return in_array( $payment_method, $available_payment_methods, true );
 		} catch ( Exception $e ) {
 			$this->log_error( 'is_payment_method_available: ' . $e->getMessage() );
 			return false;
@@ -1095,6 +1102,32 @@ trait WC_Gateway_Revolut_Helper_Trait {
 			'payment_methods' => $available_payment_methods,
 			'card_brands'     => $available_card_brands,
 		);
+	}
+
+	/**
+	 * Fetch bank brands from api
+	 *
+	 * @return array
+	 */
+	public function fetch_bank_brands() {
+		$currency = get_woocommerce_currency();
+
+		$option_key = "revolut_{$this->api_client->mode}_{$currency}_openbanking_bank_info";
+
+		$saved_options = get_option( $option_key );
+
+		if ( ! empty( $saved_options ) ) {
+			return json_decode( $saved_options );
+		}
+
+		$this->api_client->set_public_key( $this->get_merchant_public_api_key() );
+		$banks = $this->api_client->get( "/open-banking/external-institutions?currency=$currency", true );
+
+		if ( ! empty( $banks ) ) {
+			update_option( $option_key, wp_json_encode( $banks ) );
+		}
+
+		return $banks;
 	}
 
 	/**

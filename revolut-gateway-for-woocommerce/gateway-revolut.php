@@ -6,7 +6,7 @@
  * Author: Revolut
  * Author URI: https://www.revolut.com/business/online-payments
  * Text Domain: revolut-gateway-for-woocommerce
- * Version: 4.19.3
+ * Version: 4.19.4
  * Requires at least: 4.4
  * Tested up to: 6.7.1
  * WC tested up to: 9.4.3
@@ -15,13 +15,13 @@
 
 defined( 'ABSPATH' ) || exit;
 define( 'REVOLUT_PATH', plugin_dir_path( __FILE__ ) );
-define( 'WC_GATEWAY_REVOLUT_VERSION', '4.19.3' );
+define( 'WC_GATEWAY_REVOLUT_VERSION', '4.19.4' );
 define( 'WC_GATEWAY_PUBLIC_KEY_ENDPOINT', '/public-key/latest' );
 define( 'WC_GATEWAY_REVPAY_INDEX', 'USE_REVOLUT_PAY_2_0' );
 define( 'WC_REVOLUT_WAIT_FOR_ORDER_TIME', 2 );
 define( 'WC_REVOLUT_FETCH_API_ORDER_ATTEMPTS', 10 );
 define( 'WC_REVOLUT_AUTO_CANCEL_TIMEOUT', 'PT2M' );
-define( 'WC_REVOLUT_GATEWAYS', array( 'revolut', 'revolut_cc', 'revolut_pay', 'revolut_payment_request' ) );
+define( 'WC_REVOLUT_GATEWAYS', array( 'revolut', 'revolut_cc', 'revolut_pay', 'revolut_pay_by_bank', 'revolut_payment_request' ) );
 define( 'WC_REVOLUT_BLOCKS_CHECKOUT_SCRIPT_HANDLE', 'wc-revolut-blocks-checkout-handle' );
 define( 'WC_REVOLUT_STANDARD_CHECKOUT_SCRIPT_HANDLE', 'wc-revolut-standard-checkout-handle' );
 define( 'WC_REVOLUT_EXPRESS_CHECKOUT_SCRIPT_HANDLE', 'wc-revolut-express-checkout-script-handle' );
@@ -99,6 +99,7 @@ function initiate_gateway_block_support() {
 						new WC_Gateway_Revolut_Blocks_Support(
 							$gateways[ WC_Gateway_Revolut_CC::GATEWAY_ID ],
 							$gateways[ WC_Gateway_Revolut_Pay::GATEWAY_ID ],
+							$gateways[ WC_Gateway_Revolut_Pay_By_Bank::GATEWAY_ID ],
 							$gateways[ WC_Gateway_Revolut_Payment_Request::GATEWAY_ID ]
 						)
 					);
@@ -173,6 +174,7 @@ function woocommerce_revolut_payment_gateways() {
 	return array(
 		'WC_Gateway_Revolut_CC',
 		'WC_Gateway_Revolut_Pay',
+		'WC_Gateway_Revolut_Pay_By_Bank',
 		'WC_Gateway_Revolut_Payment_Request',
 	);
 }

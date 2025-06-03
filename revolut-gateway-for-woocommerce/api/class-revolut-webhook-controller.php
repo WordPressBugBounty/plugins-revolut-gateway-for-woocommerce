@@ -292,9 +292,10 @@ class Revolut_Webhook_Controller extends \WC_REST_Data_Controller {
 			return new WP_REST_Response( array( 'status' => 'Failed' ), 422 );
 		}
 
-		$wc_order_status = empty( $wc_order->get_status() ) ? '' : $wc_order->get_status();
-		$check_wc_status = 'processing' === $wc_order_status || 'completed' === $wc_order_status;
-		$check_capture   = isset( $wc_order->get_meta( 'revolut_capture' )[0] ) ? $wc_order->get_meta( 'revolut_capture' )[0] : '';
+		$wc_order_status       = empty( $wc_order->get_status() ) ? '' : $wc_order->get_status();
+		$is_pay_by_bank_method = $wc_order->get_payment_method() === WC_Gateway_Revolut_Pay_By_Bank::GATEWAY_ID;
+		$check_wc_status       = 'processing' === $wc_order_status || 'completed' === $wc_order_status || ( 'hold' === $wc_order_status && $is_pay_by_bank_method );
+		$check_capture         = isset( $wc_order->get_meta( 'revolut_capture' )[0] ) ? $wc_order->get_meta( 'revolut_capture' )[0] : '';
 
 		$data = array();
 

@@ -76,6 +76,7 @@ class WC_Revolut_Manager {
 		include_once REVOLUT_PATH . 'includes/abstract/class-wc-payment-gateway-revolut.php';
 		include_once REVOLUT_PATH . 'includes/gateways/class-wc-gateway-revolut-cc.php';
 		include_once REVOLUT_PATH . 'includes/gateways/class-wc-gateway-revolut-pay.php';
+		include_once REVOLUT_PATH . 'includes/gateways/class-wc-gateway-revolut-pay-by-bank.php';
 		require_once REVOLUT_PATH . 'includes/gateways/class-wc-gateway-revolut-payment-request.php';
 
 		// main classes.
@@ -100,6 +101,7 @@ class WC_Revolut_Manager {
 		new WC_Revolut_Payment_Ajax_Controller();
 		new WC_Gateway_Revolut_Payment_Request();
 		new WC_Gateway_Revolut_Pay();
+		new WC_Gateway_Revolut_Pay_By_Bank();
 	}
 }
 
