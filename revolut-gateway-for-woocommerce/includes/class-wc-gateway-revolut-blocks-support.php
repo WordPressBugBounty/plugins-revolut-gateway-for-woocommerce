@@ -100,6 +100,7 @@ class WC_Gateway_Revolut_Blocks_Support extends Automattic\WooCommerce\Blocks\Pa
 	 * Prepares gateway data to be available in FE
 	 */
 	public function get_payment_method_data() {
+		try {
 			$payment_methods_data = array(
 				'revolut_cc_data'              => $this->revolut_cc_payment_method_data(),
 				'revolut_pay_data'             => $this->revolut_pay_payment_method_data(),
@@ -110,6 +111,10 @@ class WC_Gateway_Revolut_Blocks_Support extends Automattic\WooCommerce\Blocks\Pa
 				$payment_methods_data,
 				$this->get_common_payment_data(),
 			);
+		} catch ( Throwable $e ) {
+			$this->card_gateway->log_error( 'revolut_cc_payment_method_data : ' . $e->getMessage() );
+			return array();
+		}
 	}
 
 	/**
@@ -225,6 +230,9 @@ class WC_Gateway_Revolut_Blocks_Support extends Automattic\WooCommerce\Blocks\Pa
 	 * Returns common fields shared across all payment methods
 	 */
 	private function get_common_payment_data() {
+		if ( ! WC()->cart ) {
+			return array();
+		}
 
 		$descriptor = new WC_Revolut_Order_Descriptor(
 			WC()->cart->get_total( '' ),
