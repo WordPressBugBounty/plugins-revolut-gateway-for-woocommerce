@@ -109,7 +109,7 @@ class WC_Gateway_Revolut_Blocks_Support extends Automattic\WooCommerce\Blocks\Pa
 			);
 			return array_merge(
 				$payment_methods_data,
-				$this->get_common_payment_data(),
+				$this->get_common_payment_data()
 			);
 		} catch ( Throwable $e ) {
 			$this->card_gateway->log_error( 'revolut_cc_payment_method_data : ' . $e->getMessage() );
@@ -160,7 +160,7 @@ class WC_Gateway_Revolut_Blocks_Support extends Automattic\WooCommerce\Blocks\Pa
 					'payment_method_name' => $this->revolut_pay_by_bank->id,
 					'title'               => $this->revolut_pay_by_bank->title,
 					'can_make_payment'    => $this->revolut_pay_by_bank->is_available(),
-				),
+				)
 			);
 		} catch ( Throwable $e ) {
 			$this->revolut_pay_gateway->log_error( 'revolut_pay_payment_method_data : ' . $e->getMessage() );
@@ -189,7 +189,7 @@ class WC_Gateway_Revolut_Blocks_Support extends Automattic\WooCommerce\Blocks\Pa
 						'label_icon_variant'    => $this->revolut_pay_gateway->promotional_settings->revolut_pay_label_icon_variant(),
 					),
 					'styles'              => $this->revolut_pay_gateway->get_revolut_pay_button_styles(),
-				),
+				)
 			);
 		} catch ( Throwable $e ) {
 			$this->revolut_pay_gateway->log_error( 'revolut_pay_payment_method_data : ' . $e->getMessage() );
@@ -213,7 +213,7 @@ class WC_Gateway_Revolut_Blocks_Support extends Automattic\WooCommerce\Blocks\Pa
 					'can_make_payment'    => $this->payment_request_gateway->page_supported(),
 					'is_cart'             => is_cart(),
 					'styles'              => $this->payment_request_gateway->get_prb_button_styles(),
-				),
+				)
 			);
 
 		} catch ( Throwable $e ) {

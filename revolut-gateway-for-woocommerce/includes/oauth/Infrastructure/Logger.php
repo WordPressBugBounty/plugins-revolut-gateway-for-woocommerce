@@ -15,17 +15,17 @@ class Logger implements LoggerInterface
         $this->logger = wc_get_logger();
     }   
 
-    public function info(string $message, mixed $context = self::LOG_CONTEXT)
+    public function info(string $message, array $context = self::LOG_CONTEXT)
     {
         $this->logger->info($message, $context);
     }
     
-    public function error(string $message, mixed $context = self::LOG_CONTEXT)
+    public function error(string $message, array $context = self::LOG_CONTEXT)
     {
         $this->logger->error($message, $context);
     }
     
-    public function debug(string $message, mixed $context = self::LOG_CONTEXT)
+    public function debug(string $message, array $context = self::LOG_CONTEXT)
     {
         $this->logger->debug($message, $context);
     }

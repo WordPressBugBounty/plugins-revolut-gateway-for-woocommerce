@@ -24,7 +24,7 @@ class AuthConnect
         HttpClientInterface $httpClient, 
         ConfigProvider $provider, 
         LockInterface $lock,
-        ?LockInterface $tokenRefreshJobLock = null,
+        ?LockInterface $tokenRefreshJobLock = null
     ) {
         $this->repository            = $repo;
         $this->httpClient            = $httpClient;

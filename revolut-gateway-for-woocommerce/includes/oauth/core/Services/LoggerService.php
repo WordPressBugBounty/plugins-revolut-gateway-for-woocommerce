@@ -9,7 +9,7 @@ class RLog
     private static $logger;
     private static $context;
 
-    public static function setLogger(LoggerInterface $logger, mixed $context)
+    public static function setLogger(LoggerInterface $logger, array $context)
     {
         self::$logger = $logger;
         self::$context = $context;

@@ -548,7 +548,7 @@ class WC_Gateway_Revolut_Pay extends WC_Payment_Gateway_Revolut {
 		wp_localize_script(
 			WC_REVOLUT_STANDARD_CHECKOUT_SCRIPT_HANDLE,
 			'wc_revolut_pay_banner_data',
-			$this->get_revolut_pay_banners_data(),
+			$this->get_revolut_pay_banners_data()
 		);
 	}
 }

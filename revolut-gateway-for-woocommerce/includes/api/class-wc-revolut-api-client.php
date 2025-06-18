@@ -152,7 +152,7 @@ class WC_Revolut_API_Client {
 			$this->token_repo,
 			new HttpClient(),
 			new ConfigProvider(),
-			$this->on_demand_token_refresh_lock,
+			$this->on_demand_token_refresh_lock
 		);
 
 		$api_tokens = $this->token_repo->getTokens();

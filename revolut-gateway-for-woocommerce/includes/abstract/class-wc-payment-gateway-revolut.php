@@ -1818,7 +1818,7 @@ abstract class WC_Payment_Gateway_Revolut extends WC_Payment_Gateway_CC {
 		wp_localize_script(
 			WC_REVOLUT_EXPRESS_CHECKOUT_SCRIPT_HANDLE,
 			'wc_revolut_payment_request_params',
-			$this->get_wc_revolut_payment_request_params(),
+			$this->get_wc_revolut_payment_request_params()
 		);
 
 	}
