@@ -737,7 +737,7 @@ trait WC_Gateway_Revolut_Helper_Trait {
 	/**
 	 * Check Merchant Account features.
 	 *
-	 * @param String $feature_flag Fleature flag name.
+	 * @param String $feature_flag Feature flag name.
 	 *
 	 * @return bool
 	 */
@@ -1149,7 +1149,7 @@ trait WC_Gateway_Revolut_Helper_Trait {
 	}
 
 	/**
-	 * Traverse meta data on a given order, looking for shippment data on known shipping plugins.
+	 * Traverse meta data on a given order, looking for shipment data on known shipping plugins.
 	 *
 	 * @param object $wc_order WC Order object.
 	 */
@@ -1189,7 +1189,7 @@ trait WC_Gateway_Revolut_Helper_Trait {
 	}
 
 	/**
-	 * Traverse meta data on a given order, looking for shippment data by approximating meta keys.
+	 * Traverse meta data on a given order, looking for shipment data by approximating meta keys.
 	 *
 	 * @param object $wc_order WC Order object.
 	 */

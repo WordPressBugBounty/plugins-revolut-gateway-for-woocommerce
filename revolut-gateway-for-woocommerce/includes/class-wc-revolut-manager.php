@@ -65,6 +65,8 @@ class WC_Revolut_Manager {
 	 * Include plugin dependencies.
 	 */
 	public function woocommerce_dependencies() {
+		// oauth flow.
+		include_once REVOLUT_PATH . '/includes/oauth/bootstrap/bootstrap.php';
 
 		// traits.
 		include_once REVOLUT_PATH . 'includes/traits/wc-revolut-settings-trait.php';

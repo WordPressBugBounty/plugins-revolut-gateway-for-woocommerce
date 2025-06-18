@@ -10,6 +10,9 @@
  * @since 2.0
  */
 
+use Revolut\Plugin\Infrastructure\Wordpress\OptionRepository;
+use Revolut\Plugin\Infrastructure\Wordpress\OptionTokenRepository;
+
 /**
  * WC_Revolut_Settings_API class.
  */
@@ -17,6 +20,20 @@ class WC_Revolut_Settings_API extends WC_Settings_API {
 
 
 	use WC_Revolut_Settings_Trait;
+
+	/**
+	 * Dev Connect server url
+	 *
+	 * @var string
+	 */
+	public $connect_server_url_dev = 'https://checkout.revolut.codes/api/connect';
+
+	/**
+	 * Prod Connect server url
+	 *
+	 * @var string
+	 */
+	public $connect_server_url_live = 'https://checkout.revolut.com/api/connect';
 
 	/**
 	 * Webhook endpoint path
@@ -48,6 +65,8 @@ class WC_Revolut_Settings_API extends WC_Settings_API {
 		$this->init_form_fields();
 		$this->init_settings();
 		$this->hooks();
+		wp_enqueue_script( 'revolut-connect' );
+		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_admin_scripts' ) );
 	}
 
 	/**
@@ -106,12 +125,12 @@ class WC_Revolut_Settings_API extends WC_Settings_API {
 			// 'description' => __( 'API Key from your Merchant settings on Revolut.', 'revolut-gateway-for-woocommerce' ),
 			// 'desc_tip'    => true,
 			// 'default'     => $api_key_dev,
-			// 'type'        => 'password',
+			// 'type'        => 'api_connect',
 			// 'class'       => 'enabled-sandbox',
 			// ),
 			'api_key'                      => array(
 				'title'       => __( 'Production API secret key', 'revolut-gateway-for-woocommerce' ),
-				'type'        => 'password',
+				'type'        => 'api_connect',
 				'description' => __( 'Production API secret key from your Merchant settings on Revolut.', 'revolut-gateway-for-woocommerce' ),
 				'desc_tip'    => true,
 				'default'     => $api_key_live,
@@ -163,6 +182,112 @@ class WC_Revolut_Settings_API extends WC_Settings_API {
 			),
 		);
 	}
+
+	/**
+	 *
+	 * Method to generate API key input with OAuth button
+	 *
+	 * @param string $field field name
+	 *
+	 * Custom field:  Connect button.
+	 */
+	public function generate_api_connect_html( $field ) {
+		ob_start();
+
+		if ( 'api_key' === $field ) {
+			$api_key = $this->get_option( 'api_key' );
+		} else {
+			$api_key = $this->get_option( 'api_key_dev' );
+		}
+		?>
+		<tr valign="top" class="woocommerce_revolut_<?php echo esc_html( $field ); ?>_container">
+			<th scope="row" class="titledesc">
+				<label for="woocommerce_revolut_<?php echo esc_html( $field ); ?>">Production API secret key <span class="woocommerce-help-tip" tabindex="0" aria-label="Production API secret key from your Merchant settings on Revolut."></span></label>
+			</th>
+
+			<td class="forminp">
+				<fieldset>
+					<legend class="screen-reader-text"><span>Production API secret key</span></legend>
+					<input class="input-text regular-input enabled-live" type="password" name="woocommerce_revolut_<?php echo esc_html( $field ); ?>" id="woocommerce_revolut_<?php echo esc_html( $field ); ?>" style="" value="<?php echo esc_html( $api_key ); ?>" placeholder="">
+				</fieldset>
+				<?php if ( empty( $api_key ) ) { ?>
+					<br>
+				<div id="connect_container_<?php echo esc_html( $field ); ?>">
+				</div>
+				<?php } ?>
+			</td>
+		</tr>
+
+		<?php
+		return ob_get_clean();
+	}
+
+	/**
+	 * Enqueue the admin JS only on our settings page.
+	 *
+	 * @param string $hook_suffix hook suffix.
+	 */
+	public function enqueue_admin_scripts( $hook_suffix ) {
+		if ( 'woocommerce_page_wc-settings' === $hook_suffix && $this->check_is_get_data_submitted( 'section' ) && $this->get_request_data( 'section' ) === 'revolut' ) {
+			$external_dependencies = require REVOLUT_PATH . 'client/dist/client/oauth.index.asset.php';
+			wp_enqueue_script(
+				WC_REVOLUT_OAUTH_CONNECT_SCRIPT_HANDLE,
+				WC_REVOLUT_PLUGIN_URL . '/client/dist/client/oauth.index.js',
+				array_merge( $external_dependencies['dependencies'], array( 'jquery' ) ),
+				WC_GATEWAY_REVOLUT_VERSION,
+				true
+			);
+
+			wp_enqueue_style( 'revolut-ui-kit-style', WC_REVOLUT_PLUGIN_URL . '/client/dist/uikit/style.css', array(), WC_GATEWAY_REVOLUT_VERSION );
+			wp_enqueue_style( 'revolut-admin-style', WC_REVOLUT_PLUGIN_URL . '/assets/css/admin.style.css', array(), WC_GATEWAY_REVOLUT_VERSION );
+
+			wp_localize_script(
+				WC_REVOLUT_OAUTH_CONNECT_SCRIPT_HANDLE,
+				'ConnectVars',
+				array(
+					'ajax_url'                => admin_url( 'admin-ajax.php' ),
+					'nonce'                   => wp_create_nonce( 'revolut_connect_nonce' ),
+					'disconnect_nonce'        => wp_create_nonce( 'revolut_disconnect_nonce' ),
+					'connect_server_url_dev'  => $this->connect_server_url_dev,
+					'connect_server_url_live' => $this->connect_server_url_live,
+					'store_has_valid_tokens'  => $this->hasValidTokens(),
+				)
+			);
+		}
+	}
+
+	/**
+	 * Check if store has valid tokens
+	 */
+	public function hasValidTokens() {
+		$token_repo = new OptionTokenRepository(
+			new OptionRepository()
+		);
+
+		$tokens = $token_repo->getTokens();
+
+		$has_valid_tokens = false;
+
+		if ( ! empty( $tokens ) ) {
+			try {
+				$api_client = new WC_Revolut_API_Client( $this, false, true );
+				$res        = $api_client->get( '/webhooks' );
+				if ( ! $res ) {
+					return false;
+				}
+				if ( in_array( 'code', array_keys( $res ? $res : array() ), true ) ) {
+					$has_valid_tokens = false;
+				} else {
+					$has_valid_tokens = true;
+				}
+			} catch ( Exception $e ) {
+				$has_valid_tokens = false;
+			}
+		}
+
+		return $has_valid_tokens;
+	}
+
 
 	/**
 	 * Displays configuration page with tabs

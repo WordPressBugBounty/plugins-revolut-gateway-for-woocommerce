@@ -272,13 +272,13 @@ class WC_Gateway_Revolut_Blocks_Support extends Automattic\WooCommerce\Blocks\Pa
 	 * @return array
 	 */
 	private function register_blocks_scripts() {
-		$external_dependencies = require REVOLUT_PATH . 'client/dist/index.asset.php';
+		$external_dependencies = require REVOLUT_PATH . 'client/dist/client/blocks.index.asset.php';
 
 		wp_register_script( WC_REVOLUT_UPSELL_WIDGET_SCRIPT_HANDLE, $this->card_gateway->api_client->base_url . '/upsell/embed.js', array(), WC_GATEWAY_REVOLUT_VERSION, true );
 		wp_register_script( WC_REVOLUT_CHECKOUT_WIDGET_SCRIPT_HANDLE, $this->card_gateway->api_client->base_url . '/embed.js', array(), WC_GATEWAY_REVOLUT_VERSION, true );
 		wp_register_script(
 			WC_REVOLUT_BLOCKS_CHECKOUT_SCRIPT_HANDLE,
-			WC_REVOLUT_PLUGIN_URL . '/client/dist/index.js',
+			WC_REVOLUT_PLUGIN_URL . '/client/dist/client/blocks.index.js',
 			$external_dependencies['dependencies'],
 			WC_GATEWAY_REVOLUT_VERSION,
 			true
