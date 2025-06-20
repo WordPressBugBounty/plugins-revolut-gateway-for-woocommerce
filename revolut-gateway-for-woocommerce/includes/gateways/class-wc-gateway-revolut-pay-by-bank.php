@@ -101,7 +101,7 @@ class WC_Gateway_Revolut_Pay_By_Bank extends WC_Payment_Gateway_Revolut {
 		$mode     = $this->api_settings->get_option( 'mode' );
 
 		return '<fieldset id="wc-' . $this->id . '-form" class="wc-credit-card-form wc-payment-form">
-        <div id="woocommerce-revolut-pay-by-bank-element" data-mode="' . $mode . '" data-currency="' . $currency . '" data-total="' . $total . '" data-locale="' . $this->get_lang_iso_code() . '" data-public-id="' . $public_id . '" data-merchant-public-key="' . $merchant_public_key . '"></fieldset>';
+        <div id="woocommerce-revolut-pay-by-bank-element" data-mode="' . $mode . '" data-currency="' . $currency . '" data-total="' . $total . '" data-locale="' . $this->get_lang_iso_code() . '" data-public-id="' . $public_id . '" data-merchant-public-key="' . $merchant_public_key . '"></div></fieldset>';
 	}
 
 	/**

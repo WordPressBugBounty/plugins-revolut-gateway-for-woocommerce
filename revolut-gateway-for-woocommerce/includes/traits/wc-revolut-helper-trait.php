@@ -1123,6 +1123,10 @@ trait WC_Gateway_Revolut_Helper_Trait {
 		$this->api_client->set_public_key( $this->get_merchant_public_api_key() );
 		$banks = $this->api_client->get( "/open-banking/external-institutions?currency=$currency", true );
 
+		if ( ! is_array( $banks ) || ! in_array( 'institutions', array_keys( $banks ), true ) ) {
+			return array();
+		}
+
 		if ( ! empty( $banks ) ) {
 			update_option( $option_key, wp_json_encode( $banks ) );
 		}

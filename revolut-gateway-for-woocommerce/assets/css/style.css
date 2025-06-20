@@ -240,3 +240,8 @@
     transform: rotate(360deg);
   }
 }
+
+.payment_method_revolut_pay_by_bank img {
+  width: 25px;
+  height: 25px;
+}
