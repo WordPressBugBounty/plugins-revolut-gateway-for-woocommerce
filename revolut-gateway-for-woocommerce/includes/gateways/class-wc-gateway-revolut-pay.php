@@ -10,6 +10,8 @@
  * @since 2.0
  */
 
+use Revolut\Plugin\Infrastructure\Api\MerchantApi;
+
 /**
  * WC_Gateway_Revolut_Pay class
  */
@@ -201,9 +203,9 @@ class WC_Gateway_Revolut_Pay extends WC_Payment_Gateway_Revolut {
 		try {
 			$order_id = $this->get_revolut_order_by_public_id( $revolut_public_id );
 
-			$revolut_order = $this->api_client->get( "/orders/{$order_id}" );
+			$revolut_order = MerchantApi::privateLegacy()->get( "/orders/{$order_id}" );
 
-			if ( ! in_array( 'shipping_address', array_keys( $revolut_order ), true ) && $this->api_client->is_dev_mode() ) {
+			if ( ! in_array( 'shipping_address', array_keys( $revolut_order ), true ) && $this->config_provider->getConfig()->isDev() ) {
 				$revolut_order['shipping_address'] = self::$mock_address;
 			}
 

@@ -6,7 +6,7 @@
  * Author: Revolut
  * Author URI: https://www.revolut.com/business/online-payments
  * Text Domain: revolut-gateway-for-woocommerce
- * Version: 4.19.8
+ * Version: 4.19.9
  * Requires at least: 4.4
  * Tested up to: 6.7.1
  * WC tested up to: 9.4.3
@@ -15,7 +15,7 @@
 
 defined( 'ABSPATH' ) || exit;
 define( 'REVOLUT_PATH', plugin_dir_path( __FILE__ ) );
-define( 'WC_GATEWAY_REVOLUT_VERSION', '4.19.8' );
+define( 'WC_GATEWAY_REVOLUT_VERSION', '4.19.9' );
 define( 'WC_GATEWAY_PUBLIC_KEY_ENDPOINT', '/public-key/latest' );
 define( 'WC_GATEWAY_REVPAY_INDEX', 'USE_REVOLUT_PAY_2_0' );
 define( 'WC_REVOLUT_WAIT_FOR_ORDER_TIME', 2 );
@@ -269,6 +269,7 @@ function woocommerce_revolut_install_single_site() {
  */
 function woocommerce_revolut_load_admin_scripts() {
 	wp_register_script( 'revolut-settings', plugins_url( 'assets/js/revolut-setting.js', WC_REVOLUT_MAIN_FILE ), array(), WC_GATEWAY_REVOLUT_VERSION, false );
+	wp_register_script( 'revolut-admin-settings', plugins_url( 'client/admin/admin.index.js', WC_REVOLUT_MAIN_FILE ), array(), WC_GATEWAY_REVOLUT_VERSION, false );
 	wp_localize_script(
 		'revolut-settings',
 		'default_options',
@@ -276,8 +277,9 @@ function woocommerce_revolut_load_admin_scripts() {
 			'default_bg_color'   => WC_REVOLUT_CARD_WIDGET_BG_COLOR,
 			'default_text_color' => WC_REVOLUT_CARD_WIDGET_TEXT_COLOR,
 			'nonce'              => array(
-				'wc_revolut_clear_records'           => wp_create_nonce( 'wc-revolut-clear-records' ),
-				'wc_revolut_onboard_applepay_domain' => wp_create_nonce( 'wc-revolut-onboard-applepay-domain' ),
+				'wc_revolut_clear_records'            => wp_create_nonce( 'wc-revolut-clear-records' ),
+				'wc_revolut_onboard_applepay_domain'  => wp_create_nonce( 'wc-revolut-onboard-applepay-domain' ),
+				'wc_revolut_post_install_setup_nonce' => wp_create_nonce( 'wc-revolut-post-install-setup-nonce' ),
 			),
 		)
 	);

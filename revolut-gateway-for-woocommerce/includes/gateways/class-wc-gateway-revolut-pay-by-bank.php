@@ -9,6 +9,8 @@
  * @author Revolut
  */
 
+use Revolut\Plugin\Infrastructure\Api\MerchantApi;
+
 /**
  * WC_Gateway_Revolut_CC class.
  */
@@ -34,6 +36,7 @@ class WC_Gateway_Revolut_Pay_By_Bank extends WC_Payment_Gateway_Revolut {
 		parent::__construct();
 
 		add_filter( 'wc_revolut_settings_nav_tabs', array( $this, 'pay_by_bank_admin_nav_tab' ), 5 );
+		add_action( 'wp_enqueue_scripts', array( $this, 'wc_revolut_pay_by_bank_enqueue_scripts' ) );
 	}
 
 	/**
@@ -124,5 +127,60 @@ class WC_Gateway_Revolut_Pay_By_Bank extends WC_Payment_Gateway_Revolut {
 		}
 
 		return 'yes' === $this->enabled;
+	}
+
+	/**
+	 * Fetch bank brands from api
+	 *
+	 * @return array
+	 */
+	public function fetch_bank_brands() {
+		try {
+			if ( ! $this->check_currency_support() || ! $this->is_supported() ) {
+				return array();
+			}
+
+			$currency = get_woocommerce_currency();
+
+			$option_key = "revolut_{$this->config_provider->getConfig()->getMode()}_{$currency}_openbanking_bank_info";
+
+			$saved_options = get_option( $option_key );
+
+			if ( ! empty( $saved_options ) ) {
+				$saved_options = json_decode( $saved_options, true );
+				if ( is_array( $saved_options ) && in_array( 'institutions', array_keys( $saved_options ), true ) ) {
+					return $saved_options;
+				}
+			}
+
+			$banks = MerchantApi::public()->get( "/open-banking/external-institutions?currency=$currency" );
+
+			if ( ! is_array( $banks ) || ! in_array( 'institutions', array_keys( $banks ), true ) ) {
+				return array();
+			}
+
+			if ( ! empty( $banks ) ) {
+				update_option( $option_key, wp_json_encode( $banks ) );
+			}
+
+			return $banks;
+		} catch ( Exception $e ) {
+			return array();
+		}
+	}
+
+	/**
+	 * Bank logos
+	 */
+	public function wc_revolut_pay_by_bank_enqueue_scripts() {
+		if ( ! $this->page_supported() ) {
+			return;
+		}
+
+		wp_localize_script(
+			WC_REVOLUT_STANDARD_CHECKOUT_SCRIPT_HANDLE,
+			'pay_by_bank_logos',
+			$this->fetch_bank_brands()
+		);
 	}
 }

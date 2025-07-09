@@ -14,6 +14,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+use Revolut\Plugin\Infrastructure\Api\MerchantApi;
+
 /**
  * WC_Gateway_Revolut_Payment_Request class.
  */
@@ -100,7 +102,7 @@ class WC_Gateway_Revolut_Payment_Request extends WC_Payment_Gateway_Revolut {
 	 */
 	public function update_revolut_order_with_cart_total( $revolut_public_id, $is_revolut_pay = false ) {
 		$revolut_order_id             = $this->get_revolut_order_by_public_id( $revolut_public_id );
-		$revolut_order                = $this->api_client->get( "/orders/$revolut_order_id" );
+		$revolut_order                = MerchantApi::privateLegacy()->get( "/orders/$revolut_order_id" );
 		$revolut_order_shipping_total = $this->get_revolut_order_total_shipping( $revolut_order );
 
 		$cart_subtotal = round( (float) ( WC()->cart->get_subtotal() + WC()->cart->get_subtotal_tax() + $revolut_order_shipping_total ), 2 );
@@ -121,7 +123,7 @@ class WC_Gateway_Revolut_Payment_Request extends WC_Payment_Gateway_Revolut {
 			throw new Exception( 'Can not update the Order' );
 		}
 		$revolut_order_id = $this->get_revolut_order_by_public_id( $public_id );
-		$revolut_order    = $this->api_client->get( "/orders/$revolut_order_id" );
+		$revolut_order    = MerchantApi::privateLegacy()->get( "/orders/$revolut_order_id" );
 
 		return $this->get_revolut_order_amount( $revolut_order );
 	}

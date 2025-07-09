@@ -14,6 +14,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 require_once REVOLUT_PATH . 'includes/traits/wc-revolut-logger-trait.php';
 
+use Revolut\Wordpress\ServiceProvider;
+
 /**
  * WC_Gateway_Revolut_Blocks_Support class.
  */
@@ -273,9 +275,9 @@ class WC_Gateway_Revolut_Blocks_Support extends Automattic\WooCommerce\Blocks\Pa
 	 */
 	private function register_blocks_scripts() {
 		$external_dependencies = require REVOLUT_PATH . 'client/dist/client/blocks.index.asset.php';
-
-		wp_register_script( WC_REVOLUT_UPSELL_WIDGET_SCRIPT_HANDLE, $this->card_gateway->api_client->base_url . '/upsell/embed.js', array(), WC_GATEWAY_REVOLUT_VERSION, true );
-		wp_register_script( WC_REVOLUT_CHECKOUT_WIDGET_SCRIPT_HANDLE, $this->card_gateway->api_client->base_url . '/embed.js', array(), WC_GATEWAY_REVOLUT_VERSION, true );
+		$api_config            = ServiceProvider::apiConfigProvider()->getConfig();
+		wp_register_script( WC_REVOLUT_UPSELL_WIDGET_SCRIPT_HANDLE, $api_config->getBaseUrl() . '/upsell/embed.js', array(), WC_GATEWAY_REVOLUT_VERSION, true );
+		wp_register_script( WC_REVOLUT_CHECKOUT_WIDGET_SCRIPT_HANDLE, $api_config->getBaseUrl() . '/embed.js', array(), WC_GATEWAY_REVOLUT_VERSION, true );
 		wp_register_script(
 			WC_REVOLUT_BLOCKS_CHECKOUT_SCRIPT_HANDLE,
 			WC_REVOLUT_PLUGIN_URL . '/client/dist/client/blocks.index.js',

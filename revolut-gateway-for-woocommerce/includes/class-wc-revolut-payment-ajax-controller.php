@@ -12,6 +12,11 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+
+use Revolut\Wordpress\ServiceProvider;
+use Revolut\Plugin\Infrastructure\Api\MerchantApi;
+
+
 /**
  * WC_Revolut_Payment_Ajax_Controller class.
  */
@@ -20,19 +25,20 @@ class WC_Revolut_Payment_Ajax_Controller {
 	use WC_Gateway_Revolut_Helper_Trait;
 
 	use WC_Gateway_Revolut_Express_Checkout_Helper_Trait;
+
 	/**
-	 * API client
+	 * Config provider class.
 	 *
-	 * @var WC_Revolut_API_Client
+	 * @var object
 	 */
-	public $api_client;
+	private $config_provider;
 
 	/**
 	 * Constructor
 	 */
 	public function __construct() {
-		$this->api_settings = revolut_wc()->api_settings;
-		$this->api_client   = new WC_Revolut_API_Client( $this->api_settings );
+		$this->config_provider = ServiceProvider::apiConfigProvider();
+		$this->api_settings    = WC_Revolut_Settings_API::instance();
 
 		add_action( 'wc_ajax_wc_revolut_validate_checkout_fields', array( $this, 'wc_revolut_validate_checkout_fields' ) );
 		add_action( 'wc_ajax_wc_revolut_validate_order_pay_form', array( $this, 'wc_revolut_validate_order_pay_form' ) );
@@ -169,14 +175,11 @@ class WC_Revolut_Payment_Ajax_Controller {
 				'domain' => $domain_name,
 			);
 
-			$this->api_settings = revolut_wc()->api_settings;
-			$this->api_client   = new WC_Revolut_API_Client( $this->api_settings, true );
-
-			$response = $this->api_client->post( '/apple-pay/domains/register', $request_body );
+			$response = MerchantApi::private()->post( '/apple-pay/domains/register', $request_body );
 
 			$revolut_payment_request_settings                                        = get_option( 'woocommerce_revolut_payment_request_settings', array() );
 			$revolut_payment_request_settings['apple_pay_merchant_onboarded_domain'] = $domain_name;
-			$revolut_payment_request_settings['apple_pay_merchant_onboarded_api_key'] = $this->api_client->api_key;
+			$revolut_payment_request_settings['apple_pay_merchant_onboarded_api_key'] = $this->config_provider->getConfig()->getSecretKey();
 			$revolut_payment_request_settings['apple_pay_merchant_onboarded']         = 'yes';
 			update_option( 'woocommerce_revolut_payment_request_settings', $revolut_payment_request_settings );
 

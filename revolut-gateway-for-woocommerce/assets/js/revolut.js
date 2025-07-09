@@ -683,15 +683,16 @@ jQuery(function ($) {
 
   showPayByBankLogos()
 
-  function showPayByBankLogos() {
+  function showPayByBankLogos() {    
     if (
       $("label[for='payment_method_revolut_pay_by_bank']").length < 1 ||
-      !wc_revolut.bank_brands
+       typeof pay_by_bank_logos == 'undefined' ||
+      !pay_by_bank_logos
     ) {
       return
     }
 
-    const { institutions, popular_institution_ids } = wc_revolut.bank_brands
+    const { institutions, popular_institution_ids } = pay_by_bank_logos
 
     if (!institutions || !popular_institution_ids) {
       return
@@ -749,7 +750,6 @@ jQuery(function ($) {
     })
 
     payByBankInstance = instance.payByBank({
-      instantOnly: true,
       createOrder: () => Promise.resolve({ publicId: currentPaymentMethod.publicId }),
       onError: errorMsg => {
         if (errorMsg.error) {

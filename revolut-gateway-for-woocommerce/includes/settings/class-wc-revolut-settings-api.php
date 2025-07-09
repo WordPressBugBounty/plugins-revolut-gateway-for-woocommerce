@@ -10,9 +10,11 @@
  * @since 2.0
  */
 
-use Revolut\Plugin\Infrastructure\Wordpress\OptionRepository;
-use Revolut\Plugin\Infrastructure\Wordpress\OptionTokenRepository;
+use Revolut\Wordpress\Infrastructure\OptionRepository;
+use Revolut\Wordpress\ServiceProvider;
 
+use Revolut\Plugin\Infrastructure\Repositories\OptionTokenRepository;
+use Revolut\Plugin\Infrastructure\Api\MerchantApi;
 /**
  * WC_Revolut_Settings_API class.
  */
@@ -20,6 +22,28 @@ class WC_Revolut_Settings_API extends WC_Settings_API {
 
 
 	use WC_Revolut_Settings_Trait;
+
+
+	/**
+	 * Option key name.
+	 *
+	 * @var array
+	 */
+	public static $option_key = 'woocommerce_revolut_settings';
+
+	/**
+	 * Error message list.
+	 *
+	 * @var array
+	 */
+	public $error_message = array();
+
+	/**
+	 * Success message list.
+	 *
+	 * @var array
+	 */
+	public $success_message = array();
 
 	/**
 	 * Dev Connect server url
@@ -57,16 +81,43 @@ class WC_Revolut_Settings_API extends WC_Settings_API {
 	public static $address_validation_webhook_endpoint_new = '/wp-json/wc/v3/revolut/address/validation/webhook';
 
 	/**
+	 * Class instance.
+	 *
+	 * @var object
+	 */
+	public static $instance;
+
+	/**
+	 * Config provider class.
+	 *
+	 * @var object
+	 */
+	private $config_provider;
+
+	/**
 	 * Constructor
 	 */
 	public function __construct() {
-		$this->id        = 'revolut';
-		$this->tab_title = __( 'API Settings', 'revolut-gateway-for-woocommerce' );
+		$this->id              = 'revolut';
+		$this->tab_title       = __( 'API Settings', 'revolut-gateway-for-woocommerce' );
+		$this->config_provider = ServiceProvider::apiConfigProvider();
+
 		$this->init_form_fields();
 		$this->init_settings();
 		$this->hooks();
 		wp_enqueue_script( 'revolut-connect' );
 		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_admin_scripts' ) );
+	}
+
+	/**
+	 * Get singleton class instance.
+	 */
+	public static function instance() {
+		if ( null === self::$instance ) {
+			self::$instance = new self();
+		}
+
+		return self::$instance;
 	}
 
 	/**
@@ -76,11 +127,26 @@ class WC_Revolut_Settings_API extends WC_Settings_API {
 		add_filter( 'wc_revolut_settings_nav_tabs', array( $this, 'admin_nav_tab' ), 1 );
 		add_action( 'woocommerce_settings_checkout', array( $this, 'output_settings_nav' ) );
 		add_action( 'woocommerce_settings_checkout', array( $this, 'admin_options' ) );
+		add_action( 'added_option', array( $this, 'updated_option' ) );
+		add_action( 'updated_option', array( $this, 'updated_option' ) );
+		add_action( 'admin_notices', array( $this, 'show_messages' ) );
 		add_action( 'admin_notices', array( $this, 'add_revolut_description' ) );
-		add_action( 'admin_notices', array( $this, 'check_api_key' ) );
-		add_action( 'admin_notices', array( $this, 'maybe_register_webhook' ) );
-		add_action( 'admin_notices', array( $this, 'maybe_register_synchronous_webhooks' ) );
 		add_action( 'woocommerce_update_options_checkout_' . $this->id, array( $this, 'process_admin_options' ) );
+	}
+
+	/**
+	 * Wp Hook will be fired after update update action
+	 *
+	 * @param string $option_key updated option key.
+	 */
+	public function updated_option( $option_key ) {
+		if ( $option_key !== self::$option_key ) {
+			return;
+		}
+
+		$this->check_api_key();
+		$this->maybe_register_webhook();
+		$this->maybe_register_synchronous_webhooks();
 	}
 
 	/**
@@ -108,7 +174,7 @@ class WC_Revolut_Settings_API extends WC_Settings_API {
 					'sandbox' => __( 'Sandbox', 'revolut-gateway-for-woocommerce' ),
 					'live'    => __( 'Live', 'revolut-gateway-for-woocommerce' ),
 					// phpcs:ignore
-		 			// 'dev' => __('Dev', 'revolut-gateway-for-woocommerce'),
+		 			'dev' => __('Dev', 'revolut-gateway-for-woocommerce'),
 				),
 			),
 			'api_key_sandbox'              => array(
@@ -120,14 +186,14 @@ class WC_Revolut_Settings_API extends WC_Settings_API {
 				'class'       => 'enabled-sandbox',
 			),
 			// phpcs:ignore
-			// 'api_key_dev' => array(
-			// 'title'       => __( 'API Key Dev' ),
-			// 'description' => __( 'API Key from your Merchant settings on Revolut.', 'revolut-gateway-for-woocommerce' ),
-			// 'desc_tip'    => true,
-			// 'default'     => $api_key_dev,
-			// 'type'        => 'api_connect',
-			// 'class'       => 'enabled-sandbox',
-			// ),
+			'api_key_dev' => array(
+				'title'       => __( 'API Key Dev' ),
+				'description' => __( 'API Key from your Merchant settings on Revolut.', 'revolut-gateway-for-woocommerce' ),
+				'desc_tip'    => true,
+				'default'     => $api_key_dev,
+				'type'        => 'api_connect',
+				'class'       => 'enabled-sandbox',
+			),
 			'api_key'                      => array(
 				'title'       => __( 'Production API secret key', 'revolut-gateway-for-woocommerce' ),
 				'type'        => 'api_connect',
@@ -270,8 +336,7 @@ class WC_Revolut_Settings_API extends WC_Settings_API {
 
 		if ( ! empty( $tokens ) ) {
 			try {
-				$api_client = new WC_Revolut_API_Client( $this, false, true );
-				$res        = $api_client->get( '/webhooks' );
+				$res = MerchantApi::privateLegacy()->get( '/webhooks' );
 				if ( ! $res ) {
 					return false;
 				}
@@ -395,9 +460,7 @@ class WC_Revolut_Settings_API extends WC_Settings_API {
 	 * Setup Revolut webhook if not configured
 	 */
 	public function maybe_register_webhook() {
-		$api_client = new WC_Revolut_API_Client( $this );
-
-		if ( empty( $api_client->api_key ) ) {
+		if ( empty( $this->config_provider->getConfig()->getSecretKey() ) ) {
 			return false;
 		}
 
@@ -416,9 +479,7 @@ class WC_Revolut_Settings_API extends WC_Settings_API {
 	 * Setup Revolut synchronous webhooks if not configured
 	 */
 	public function maybe_register_synchronous_webhooks() {
-		$api_client = new WC_Revolut_API_Client( $this );
-
-		if ( empty( $api_client->api_key ) ) {
+		if ( empty( $this->config_provider->getConfig()->getSecretKey() ) ) {
 			return false;
 		}
 
@@ -437,8 +498,7 @@ class WC_Revolut_Settings_API extends WC_Settings_API {
 	public function setup_revolut_location() {
 		$domain        = get_site_url();
 		$location_name = str_replace( array( 'https://', 'http://' ), '', $domain );
-		$api_client    = new WC_Revolut_API_Client( $this, true );
-		$locations     = $api_client->get( '/locations' );
+		$locations     = MerchantApi::private()->get( '/locations' );
 
 		if ( ! empty( $locations ) ) {
 			foreach ( $locations as $location ) {
@@ -456,7 +516,7 @@ class WC_Revolut_Settings_API extends WC_Settings_API {
 			),
 		);
 
-		$location = $api_client->post( '/locations', $body );
+		$location = MerchantApi::private()->post( '/locations', $body );
 
 		if ( ! isset( $location['id'] ) || empty( $location['id'] ) ) {
 			throw new Exception( 'Can not create location object.' );
@@ -483,8 +543,7 @@ class WC_Revolut_Settings_API extends WC_Settings_API {
 				return false;
 			}
 
-			$api_client        = new WC_Revolut_API_Client( $this );
-			$web_hook_url_list = $api_client->get( '/webhooks' );
+			$web_hook_url_list = MerchantApi::privateLegacy()->get( '/webhooks' );
 
 			if ( ! empty( $web_hook_url_list ) ) {
 				$web_hook_url_list = array_column( $web_hook_url_list, 'url' );
@@ -505,13 +564,12 @@ class WC_Revolut_Settings_API extends WC_Settings_API {
 	 */
 	public function remove_old_revolut_webhook_if_exist() {
 		$old_web_hook_url  = get_site_url( null, self::$webhook_endpoint, 'https' );
-		$api_client        = new WC_Revolut_API_Client( $this );
-		$web_hook_url_list = $api_client->get( '/webhooks' );
+		$web_hook_url_list = MerchantApi::privateLegacy()->get( '/webhooks' );
 
 		if ( ! empty( $web_hook_url_list ) ) {
 			foreach ( $web_hook_url_list as $key => $value ) {
 				if ( $value['url'] === $old_web_hook_url ) {
-					$api_client->delete( '/webhooks/' . $value['id'] );
+					MerchantApi::privateLegacy()->delete( '/webhooks/' . $value['id'] );
 				}
 			}
 		}
@@ -535,8 +593,7 @@ class WC_Revolut_Settings_API extends WC_Settings_API {
 				),
 			);
 
-			$api_client = new WC_Revolut_API_Client( $this );
-			$response   = $api_client->post( '/webhooks', $body );
+			$response = MerchantApi::privateLegacy()->post( '/webhooks', $body );
 
 			if ( isset( $response['id'] ) && ! empty( $response['id'] ) && ! empty( $response['signing_secret'] ) ) {
 				$this->remove_old_revolut_webhook_if_exist();
@@ -579,8 +636,7 @@ class WC_Revolut_Settings_API extends WC_Settings_API {
 				'location_id' => $location_id,
 			);
 
-			$api_client = new WC_Revolut_API_Client( $this, true );
-			$response   = $api_client->post( '/synchronous-webhooks', $body );
+			$response = MerchantApi::private()->post( '/synchronous-webhooks', $body );
 
 			if ( isset( $response['signing_key'] ) && ! empty( $response['signing_key'] ) ) {
 				update_option( 'revolut_' . $mode . '_location_id', $location_id );
@@ -612,7 +668,7 @@ class WC_Revolut_Settings_API extends WC_Settings_API {
 	 * @param string $message display message.
 	 */
 	public function add_error_message( $message ) {
-		echo wp_kses_post( '<div class="error revolut-passphrase-message"><p>' . $message . '</p></div>' );
+		$this->error_message[] = $message;
 	}
 
 	/**
@@ -621,7 +677,24 @@ class WC_Revolut_Settings_API extends WC_Settings_API {
 	 * @param string $message display message.
 	 */
 	public function add_success_message( $message ) {
-		echo wp_kses_post( '<div style="border-left-color: green" class="error revolut-passphrase-message"><p>' . $message . '</p></div>' );
+		$this->success_message[] = $message;
+	}
+
+	/**
+	 * Display setting update messages
+	 */
+	public function show_messages() {
+		if ( ! empty( $this->success_message ) ) {
+			foreach ( $this->success_message as $message ) {
+				echo wp_kses_post( '<div style="border-left-color: green" class="error revolut-passphrase-message"><p>' . $message . '</p></div>' );
+			}
+		}
+
+		if ( ! empty( $this->error_message ) ) {
+			foreach ( $this->error_message as $message ) {
+				echo wp_kses_post( '<div class="error revolut-passphrase-message"><p>' . $message . '</p></div>' );
+			}
+		}
 	}
 
 	/**

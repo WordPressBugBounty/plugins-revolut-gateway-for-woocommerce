@@ -34,14 +34,6 @@ class Revolut_Webhook_Controller extends \WC_REST_Data_Controller {
 	protected $rest_base = 'revolut';
 
 	/**
-	 * Constructor
-	 */
-	public function __construct() {
-		$this->api_settings = revolut_wc()->api_settings;
-		$this->api_client   = new WC_Revolut_API_Client( $this->api_settings );
-	}
-
-	/**
 	 * Register routes.
 	 *
 	 * @since 3.5.0

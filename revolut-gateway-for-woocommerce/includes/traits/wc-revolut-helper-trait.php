@@ -14,6 +14,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+use Revolut\Plugin\Infrastructure\Api\MerchantApi;
+
 /**
  * WC_Gateway_Revolut_Helper_Trait trait.
  */
@@ -54,7 +56,7 @@ trait WC_Gateway_Revolut_Helper_Trait {
 			}
 		}
 
-		$json = $this->api_client->post( '/orders', $body, false, true );
+		$json = MerchantApi::private()->post( '/orders', $body );
 
 		if ( isset( $json['token'] ) ) {
 			$json['public_id'] = $json['token'];
@@ -114,13 +116,13 @@ trait WC_Gateway_Revolut_Helper_Trait {
 			return $this->create_revolut_order( $order_descriptor, $is_revpay_express_checkout );
 		}
 
-		$revolut_order = $this->api_client->get( "/orders/$order_id" );
+		$revolut_order = MerchantApi::privateLegacy()->get( "/orders/$order_id" );
 
 		if ( ! isset( $revolut_order['public_id'] ) || ! isset( $revolut_order['id'] ) || 'PENDING' !== $revolut_order['state'] ) {
 			return $this->create_revolut_order( $order_descriptor, $is_revpay_express_checkout );
 		}
 
-		$revolut_order = $this->api_client->patch( "/orders/$order_id", $body );
+		$revolut_order = MerchantApi::privateLegacy()->patch( "/orders/$order_id", $body );
 
 		if ( ! isset( $revolut_order['public_id'] ) || ! isset( $revolut_order['id'] ) ) {
 			return $this->create_revolut_order( $order_descriptor, $is_revpay_express_checkout );
@@ -152,12 +154,7 @@ trait WC_Gateway_Revolut_Helper_Trait {
 				'shipping'   => $this->collect_order_shipping_info( $order ),
 			);
 
-			$this->api_client->patch(
-				"/orders/$revolut_order_id",
-				$order_details,
-				false,
-				true
-			);
+			MerchantApi::private()->patch( "/orders/$revolut_order_id", $order_details );
 		} catch ( Exception $e ) {
 			$this->log_error( 'save_order_line_items failed : ' . $e->getMessage() );
 		}
@@ -301,7 +298,7 @@ trait WC_Gateway_Revolut_Helper_Trait {
 			return null;
 		}
 
-		$this->api_client->patch( "/customers/$revolut_customer_id", array( 'phone' => $billing_phone ) );
+		MerchantApi::privateLegacy()->patch( "/customers/$revolut_customer_id", array( 'phone' => $billing_phone ) );
 	}
 
 	/**
@@ -322,11 +319,11 @@ trait WC_Gateway_Revolut_Helper_Trait {
 				$body['phone'] = $billing_phone;
 			}
 
-			$revolut_customer    = $this->api_client->get( '/customers?term=' . $billing_email );
+			$revolut_customer    = MerchantApi::privateLegacy()->get( '/customers?term=' . $billing_email );
 			$revolut_customer_id = ! empty( $revolut_customer[0]['id'] ) ? $revolut_customer[0]['id'] : '';
 
 			if ( ! $revolut_customer_id ) {
-				$revolut_customer    = $this->api_client->post( '/customers', $body );
+				$revolut_customer    = MerchantApi::privateLegacy()->post( '/customers', $body );
 				$revolut_customer_id = ! empty( $revolut_customer['id'] ) ? $revolut_customer['id'] : '';
 			}
 
@@ -356,7 +353,7 @@ trait WC_Gateway_Revolut_Helper_Trait {
 		}
 
 		global $wpdb;
-		$revolut_customer_id = "{$this->api_client->mode}_$revolut_customer_id";
+		$revolut_customer_id = "{$this->config_provider->getConfig()->getMode()}_$revolut_customer_id";
 
 		$wpdb->query(
 			$wpdb->prepare(
@@ -551,7 +548,7 @@ trait WC_Gateway_Revolut_Helper_Trait {
 	 * @param string $revolut_order_id Revolut order id.
 	 */
 	protected function is_pending_payment( $revolut_order_id ) {
-		$revolut_order = $this->api_client->get( '/orders/' . $revolut_order_id );
+		$revolut_order = MerchantApi::privateLegacy()->get( '/orders/' . $revolut_order_id );
 		return ! isset( $revolut_order['state'] ) || ( isset( $revolut_order['state'] ) && 'PENDING' === $revolut_order['state'] );
 	}
 
@@ -613,14 +610,18 @@ trait WC_Gateway_Revolut_Helper_Trait {
 		if ( count( $revolut_customer_id_with_mode ) > 1 ) {
 			list( $api_mode, $revolut_customer_id ) = $revolut_customer_id_with_mode;
 
-			if ( $api_mode !== $this->api_client->mode ) {
+			if ( $api_mode !== $this->config_provider->getConfig()->getMode() ) {
 				$this->delete_customer_record( $wc_customer_id );
 				return null;
 			}
 		}
 
+		if ( empty( $revolut_customer_id ) ) {
+			return null;
+		}
+
 		// verify customer id through api.
-		$revolut_customer = $this->api_client->get( '/customers/' . $revolut_customer_id );
+		$revolut_customer = MerchantApi::privateLegacy()->get( '/customers/' . $revolut_customer_id );
 
 		if ( empty( $revolut_customer['id'] ) ) {
 			$this->delete_customer_record( $wc_customer_id );
@@ -671,7 +672,7 @@ trait WC_Gateway_Revolut_Helper_Trait {
 			return false;
 		}
 
-		$revolut_order = $this->api_client->get( "/orders/$order_id" );
+		$revolut_order = MerchantApi::privateLegacy()->get( "/orders/$order_id" );
 
 		$revolut_order_amount = $this->get_revolut_order_amount( $revolut_order );
 
@@ -683,7 +684,7 @@ trait WC_Gateway_Revolut_Helper_Trait {
 			return false;
 		}
 
-		$revolut_order = $this->api_client->patch( "/orders/$order_id", $body );
+		$revolut_order = MerchantApi::privateLegacy()->patch( "/orders/$order_id", $body );
 
 		if ( ! isset( $revolut_order['public_id'] ) || ! isset( $revolut_order['id'] ) ) {
 			return false;
@@ -743,8 +744,7 @@ trait WC_Gateway_Revolut_Helper_Trait {
 	 */
 	public function check_feature_support( $feature_flag ) {
 		try {
-			$this->api_client->set_public_key( $this->get_merchant_public_api_key() );
-			$merchant_features = $this->api_client->get( '/merchant', true );
+			$merchant_features = MerchantApi::public()->get( '/merchant' );
 
 			return isset( $merchant_features['features'] ) && is_array( $merchant_features['features'] ) && in_array(
 				$feature_flag,
@@ -769,14 +769,14 @@ trait WC_Gateway_Revolut_Helper_Trait {
 	 * Unset Revolut public_id
 	 */
 	protected function unset_revolut_public_id() {
-		WC()->session->__unset( "{$this->api_client->mode}_revolut_public_id" );
+		WC()->session->__unset( "{$this->config_provider->getConfig()->getMode()}_revolut_public_id" );
 	}
 
 	/**
 	 * Unset Revolut public_id
 	 */
 	protected function unset_revolut_express_checkout_public_id() {
-		WC()->session->__unset( "{$this->api_client->mode}_revolut_express_checkout_public_id" );
+		WC()->session->__unset( "{$this->config_provider->getConfig()->getMode()}_revolut_express_checkout_public_id" );
 	}
 
 	/**
@@ -785,7 +785,7 @@ trait WC_Gateway_Revolut_Helper_Trait {
 	 * @param string $value Revolut public id.
 	 */
 	public function set_revolut_public_id( $value ) {
-		WC()->session->set( "{$this->api_client->mode}_revolut_public_id", $value );
+		WC()->session->set( "{$this->config_provider->getConfig()->getMode()}_revolut_public_id", $value );
 	}
 
 	/**
@@ -794,7 +794,7 @@ trait WC_Gateway_Revolut_Helper_Trait {
 	 * @param string $value Revolut public id.
 	 */
 	public function set_revolut_express_checkout_public_id( $value ) {
-		WC()->session->set( "{$this->api_client->mode}_revolut_express_checkout_public_id", $value );
+		WC()->session->set( "{$this->config_provider->getConfig()->getMode()}_revolut_express_checkout_public_id", $value );
 	}
 
 	/**
@@ -803,7 +803,7 @@ trait WC_Gateway_Revolut_Helper_Trait {
 	 * @return array|string|null
 	 */
 	public function get_revolut_public_id() {
-		$public_id = WC()->session->get( "{$this->api_client->mode}_revolut_public_id" );
+		$public_id = WC()->session->get( "{$this->config_provider->getConfig()->getMode()}_revolut_public_id" );
 
 		if ( empty( $public_id ) ) {
 			return null;
@@ -824,7 +824,7 @@ trait WC_Gateway_Revolut_Helper_Trait {
 	 * @return array|string|null
 	 */
 	protected function get_revolut_express_checkout_public_id() {
-		return WC()->session->get( "{$this->api_client->mode}_revolut_express_checkout_public_id" );
+		return WC()->session->get( "{$this->config_provider->getConfig()->getMode()}_revolut_express_checkout_public_id" );
 	}
 
 	/**
@@ -833,16 +833,16 @@ trait WC_Gateway_Revolut_Helper_Trait {
 	 * @return array|string|null
 	 */
 	protected function get_revolut_merchant_public_key() {
-		return get_option( "{$this->api_client->mode}_revolut_merchant_public_key" );
+		return get_option( "{$this->config_provider->getConfig()->getMode()}_revolut_merchant_public_key" );
 	}
 
 	/**
 	 * Set  Revolut Merchant Public Key
 	 */
 	protected function update_revolut_merchant_public_key() {
-		$merchant_public_key = $this->api_client->get( WC_GATEWAY_PUBLIC_KEY_ENDPOINT, false, true );
+		$merchant_public_key = MerchantApi::private()->get( WC_GATEWAY_PUBLIC_KEY_ENDPOINT );
 		$merchant_public_key = isset( $merchant_public_key['public_key'] ) ? $merchant_public_key['public_key'] : '';
-		update_option( "{$this->api_client->mode}_revolut_merchant_public_key", $merchant_public_key );
+		update_option( "{$this->config_provider->getConfig()->getMode()}_revolut_merchant_public_key", $merchant_public_key );
 		return $merchant_public_key;
 	}
 
@@ -995,7 +995,7 @@ trait WC_Gateway_Revolut_Helper_Trait {
 	 */
 	public function get_available_card_brands( $amount, $currency ) {
 		try {
-			$available_card_brands = get_option( "revolut_{$this->api_client->mode}_{$currency}_available_card_brands" );
+			$available_card_brands = get_option( "revolut_{$this->config_provider->getConfig()->getMode()}_{$currency}_available_card_brands" );
 
 			if ( ! $available_card_brands ) {
 				$available_card_brands = $this->fetch_available_payment_methods_and_brand_logos( $amount, $currency )['card_brands'];
@@ -1015,7 +1015,7 @@ trait WC_Gateway_Revolut_Helper_Trait {
 	 */
 	public function get_available_payment_methods( $amount, $currency ) {
 		try {
-			$available_payment_methods = get_option( "revolut_{$this->api_client->mode}_{$currency}_available_payment_methods" );
+			$available_payment_methods = get_option( "revolut_{$this->config_provider->getConfig()->getMode()}_{$currency}_available_payment_methods" );
 
 			if ( ! $available_payment_methods ) {
 				$available_payment_methods = $this->fetch_available_payment_methods_and_brand_logos( $amount, $currency )['payment_methods'];
@@ -1086,52 +1086,21 @@ trait WC_Gateway_Revolut_Helper_Trait {
 		$available_payment_methods = array();
 		$available_card_brands     = array();
 
-		$this->api_client->set_public_key( $this->get_merchant_public_api_key() );
-		$order_details = $this->api_client->get( "/available-payment-methods?amount=$amount&currency=$currency", true );
+		$order_details = MerchantApi::public()->get( "/available-payment-methods?amount=$amount&currency=$currency" );
 
 		if ( isset( $order_details['available_payment_methods'] ) && ! empty( $order_details['available_payment_methods'] ) ) {
 			$available_payment_methods = array_map( 'strtolower', $order_details['available_payment_methods'] );
-			update_option( "revolut_{$this->api_client->mode}_{$currency}_available_payment_methods", $available_payment_methods );
+			update_option( "revolut_{$this->config_provider->getConfig()->getMode()}_{$currency}_available_payment_methods", $available_payment_methods );
 		}
 
 		if ( isset( $order_details['available_card_brands'] ) && ! empty( $order_details['available_card_brands'] ) ) {
 			$available_card_brands = array_map( 'strtolower', $order_details['available_card_brands'] );
-			update_option( "revolut_{$this->api_client->mode}_{$currency}_available_card_brands", $available_card_brands );
+			update_option( "revolut_{$this->config_provider->getConfig()->getMode()}_{$currency}_available_card_brands", $available_card_brands );
 		}
 		return array(
 			'payment_methods' => $available_payment_methods,
 			'card_brands'     => $available_card_brands,
 		);
-	}
-
-	/**
-	 * Fetch bank brands from api
-	 *
-	 * @return array
-	 */
-	public function fetch_bank_brands() {
-		$currency = get_woocommerce_currency();
-
-		$option_key = "revolut_{$this->api_client->mode}_{$currency}_openbanking_bank_info";
-
-		$saved_options = get_option( $option_key );
-
-		if ( ! empty( $saved_options ) ) {
-			return json_decode( $saved_options );
-		}
-
-		$this->api_client->set_public_key( $this->get_merchant_public_api_key() );
-		$banks = $this->api_client->get( "/open-banking/external-institutions?currency=$currency", true );
-
-		if ( ! is_array( $banks ) || ! in_array( 'institutions', array_keys( $banks ), true ) ) {
-			return array();
-		}
-
-		if ( ! empty( $banks ) ) {
-			update_option( $option_key, wp_json_encode( $banks ) );
-		}
-
-		return $banks;
 	}
 
 	/**

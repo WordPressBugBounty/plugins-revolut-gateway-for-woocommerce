@@ -12,12 +12,17 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+use Revolut\Wordpress\ServiceProvider;
+use Revolut\Plugin\Infrastructure\Api\MerchantApi;
+
+
 /**
  * WC_Revolut_Apple_Pay_OnBoarding class.
  */
 class WC_Revolut_Apple_Pay_OnBoarding {
 
 	use WC_Gateway_Revolut_Helper_Trait;
+
 	/**
 	 * Onboarding file root directory.
 	 *
@@ -56,14 +61,14 @@ class WC_Revolut_Apple_Pay_OnBoarding {
 	/**
 	 * Error message.
 	 *
-	 * @var string
+	 * @var array
 	 */
 	public $error_messages;
 
 	/**
 	 * Success message.
 	 *
-	 * @var string
+	 * @var array
 	 */
 	public $success_messages;
 
@@ -74,19 +79,18 @@ class WC_Revolut_Apple_Pay_OnBoarding {
 	 */
 	public $revolut_payment_request_settings;
 
+
 	/**
-	 * API client
+	 * Config provider class.
 	 *
-	 * @var WC_Revolut_API_Client
+	 * @var object
 	 */
-	public $api_client;
+	public $config_provider;
 
 	/**
 	 * Constructor
 	 */
 	public function __construct() {
-		$this->api_client = new WC_Revolut_API_Client( revolut_wc()->api_settings, true );
-
 		add_action( 'admin_init', array( $this, 'maybe_onboard_apple_pay_merchant' ) );
 		add_action( 'admin_notices', array( $this, 'admin_notices' ) );
 
@@ -110,6 +114,7 @@ class WC_Revolut_Apple_Pay_OnBoarding {
 		$this->onboarding_file_path                 = $this->onboarding_file_dir . '/apple-developer-merchantid-domain-association';
 		$this->domain_onboarding_file_download_link = 'https://assets.revolut.com/api-docs/merchant-api/files/apple-developer-merchantid-domain-association';
 		$this->domain_onboarding_file_local_link    = get_site_url() . '/.well-known/apple-developer-merchantid-domain-association';
+		$this->config_provider                      = ServiceProvider::apiConfigProvider();
 
 		$this->revolut_payment_request_settings = get_option( 'woocommerce_revolut_payment_request_settings', array() );
 
@@ -134,7 +139,6 @@ class WC_Revolut_Apple_Pay_OnBoarding {
 	 * @param array $new_options new options.
 	 */
 	public function on_revolut_options_update( $old_options, $new_options ) {
-		$this->api_client = new WC_Revolut_API_Client( revolut_wc()->api_settings, true );
 		$this->maybe_onboard_apple_pay_merchant();
 	}
 
@@ -187,7 +191,7 @@ class WC_Revolut_Apple_Pay_OnBoarding {
 			return false;
 		}
 
-		if ( ! $this->check_is_api_key_configured() ) {
+		if ( ! $this->check_credentials_present() ) {
 			return false;
 		}
 
@@ -197,8 +201,12 @@ class WC_Revolut_Apple_Pay_OnBoarding {
 	/**
 	 * Check is api key configured.
 	 */
-	public function check_is_api_key_configured() {
-		return ! empty( $this->api_client->api_key ) && 'sandbox' !== $this->api_client->get_mode();
+	public function check_credentials_present() {
+		if ( $this->config_provider->getConfig()->isSandbox() ) {
+			return false;
+		}
+		return ! empty( $this->config_provider->getConfig()->getSecretKey() ) || ! empty( $this->config_provider->getTokens() );
+
 	}
 
 	/**
@@ -206,7 +214,7 @@ class WC_Revolut_Apple_Pay_OnBoarding {
 	 */
 	public function check_is_already_onboarded() {
 		return $this->get_option( 'apple_pay_merchant_onboarded' ) === 'yes'
-			&& $this->get_option( 'apple_pay_merchant_onboarded_api_key' ) === $this->api_client->api_key
+			&& $this->get_option( 'apple_pay_merchant_onboarded_api_key' ) === $this->config_provider->getConfig()->getSecretKey()
 			&& $this->domain_name === $this->get_option( 'apple_pay_merchant_onboarded_domain' );
 	}
 
@@ -237,7 +245,7 @@ class WC_Revolut_Apple_Pay_OnBoarding {
 	public function maybe_onboard_apple_pay_merchant() {
 		try {
 			$available_payment_methods = $this->get_available_payment_methods( 100, 'EUR' );
-			if ( ! in_array( 'apple_pay', $available_payment_methods, true ) || ! $this->check_is_api_key_configured() ) {
+			if ( ! in_array( 'apple_pay', $available_payment_methods, true ) || ! $this->check_credentials_present() ) {
 
 				return false;
 			}
@@ -301,7 +309,7 @@ class WC_Revolut_Apple_Pay_OnBoarding {
 			$this->remove_onboarding_file();
 
 			$this->revolut_payment_request_settings['apple_pay_merchant_onboarded_domain']  = $this->domain_name;
-			$this->revolut_payment_request_settings['apple_pay_merchant_onboarded_api_key'] = $this->api_client->api_key;
+			$this->revolut_payment_request_settings['apple_pay_merchant_onboarded_api_key'] = $this->config_provider->getConfig()->getSecretKey();
 			$this->revolut_payment_request_settings['apple_pay_merchant_onboarded']         = 'yes';
 			update_option( 'woocommerce_revolut_payment_request_settings', $this->revolut_payment_request_settings );
 
@@ -324,7 +332,7 @@ class WC_Revolut_Apple_Pay_OnBoarding {
 			$request_body = array(
 				'domain' => $this->domain_name,
 			);
-			$res          = $this->api_client->post( '/apple-pay/domains/register', $request_body );
+			$res          = MerchantApi::private()->post( '/apple-pay/domains/register', $request_body );
 		} catch ( Exception $e ) {
 			$this->log_error( $e->getMessage() );
 

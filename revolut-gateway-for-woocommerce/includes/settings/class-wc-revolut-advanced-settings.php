@@ -16,6 +16,13 @@
 class WC_Revolut_Advanced_Settings extends WC_Revolut_Settings_API {
 
 	/**
+	 * Class instance.
+	 *
+	 * @var object
+	 */
+	public static $instance;
+
+	/**
 	 * Constructor
 	 */
 	public function __construct() {
@@ -24,6 +31,17 @@ class WC_Revolut_Advanced_Settings extends WC_Revolut_Settings_API {
 		$this->init_form_fields();
 		$this->init_settings();
 		$this->hooks();
+	}
+
+	/**
+	 * Get singleton class instance.
+	 */
+	public static function instance() {
+		if ( null === self::$instance ) {
+			self::$instance = new self();
+		}
+
+		return self::$instance;
 	}
 
 	/**

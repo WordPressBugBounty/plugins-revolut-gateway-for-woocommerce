@@ -58,21 +58,27 @@ class WC_Revolut_Manager {
 	 * Constructor
 	 */
 	public function __construct() {
-		add_action( 'woocommerce_init', array( $this, 'woocommerce_dependencies' ) );
+		$this->woocommerce_dependencies();
 	}
 
 	/**
 	 * Include plugin dependencies.
 	 */
 	public function woocommerce_dependencies() {
-		// oauth flow.
-		include_once REVOLUT_PATH . '/includes/oauth/bootstrap/bootstrap.php';
+		// init core.
+		include_once REVOLUT_PATH . '/src/index.php';
 
 		// traits.
 		include_once REVOLUT_PATH . 'includes/traits/wc-revolut-settings-trait.php';
 		include_once REVOLUT_PATH . 'includes/traits/wc-revolut-logger-trait.php';
 		include_once REVOLUT_PATH . 'includes/traits/wc-revolut-helper-trait.php';
 		include_once REVOLUT_PATH . 'includes/traits/wc-revolut-express-checkout-helper-trait.php';
+
+		// settings.
+		include_once REVOLUT_PATH . 'includes/settings/class-wc-revolut-settings-api.php';
+		include_once REVOLUT_PATH . 'includes/settings/class-wc-revolut-promotional-settings.php';
+		include_once REVOLUT_PATH . 'includes/settings/class-wc-revolut-advanced-settings.php';
+		include_once REVOLUT_PATH . '/includes/class-wc-revolut-payment-tokens.php';
 
 		// load gateways.
 		include_once REVOLUT_PATH . 'includes/abstract/class-wc-payment-gateway-revolut.php';
@@ -87,18 +93,9 @@ class WC_Revolut_Manager {
 		include_once REVOLUT_PATH . 'includes/class-wc-revolut-order-descriptor.php';
 		include_once REVOLUT_PATH . 'includes/class-wc-revolut-payment-ajax-controller.php';
 		include_once REVOLUT_PATH . 'includes/class-wc-revolut-apple-pay-onboarding.php';
-		include_once REVOLUT_PATH . 'includes/api/class-wc-revolut-api-client.php';
 		include_once REVOLUT_PATH . '/api/class-revolut-webhook-controller.php';
 
-		// settings.
-		include_once REVOLUT_PATH . 'includes/settings/class-wc-revolut-settings-api.php';
-		include_once REVOLUT_PATH . 'includes/settings/class-wc-revolut-promotional-settings.php';
-		include_once REVOLUT_PATH . 'includes/settings/class-wc-revolut-advanced-settings.php';
-		include_once REVOLUT_PATH . '/includes/class-wc-revolut-payment-tokens.php';
 
-		$this->api_settings         = new WC_Revolut_Settings_API();
-		$this->promotional_settings = new WC_Revolut_Promotional_Settings();
-		$this->advanced_settings    = new WC_Revolut_Advanced_Settings();
 		new WC_Revolut_Apple_Pay_OnBoarding();
 		new WC_Revolut_Payment_Ajax_Controller();
 		new WC_Gateway_Revolut_Payment_Request();
@@ -117,5 +114,4 @@ function revolut_wc() {
 	return WC_Revolut_Manager::instance();
 }
 
-// load singleton.
-revolut_wc();
+add_action( 'woocommerce_init', 'revolut_wc' );

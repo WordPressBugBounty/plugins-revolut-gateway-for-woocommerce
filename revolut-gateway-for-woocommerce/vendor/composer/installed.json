@@ -1,0 +1,61 @@
+{
+    "packages": [
+        {
+            "name": "revolut/plugin",
+            "version": "dev-REVG-1620-woo-new-version-apay-fix",
+            "version_normalized": "dev-REVG-1620-woo-new-version-apay-fix",
+            "dist": {
+                "type": "path",
+                "url": "./../../Revolut/Plugin",
+                "reference": "21ff4560cfba0131b8562772e09ec8021d21867f"
+            },
+            "require": {
+                "php": ">=7.1"
+            },
+            "require-dev": {
+                "phpcompatibility/php-compatibility": "^9.3",
+                "phpstan/phpstan": "^1.2",
+                "phpunit/phpunit": "^8.5",
+                "squizlabs/php_codesniffer": "*"
+            },
+            "type": "library",
+            "installation-source": "dist",
+            "autoload": {
+                "psr-4": {
+                    "Revolut\\Plugin\\": "lib/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Revolut\\Plugin\\Tests\\": "tests/"
+                }
+            },
+            "scripts": {
+                "test": [
+                    "composer phpcbf && vendor/bin/phpunit --verbose --configuration phpunit.xml $*"
+                ],
+                "phpcs": [
+                    "vendor/bin/phpcs --standard=phpcs.xml ./"
+                ],
+                "phpcbf": [
+                    "vendor/bin/phpcbf --standard=phpcs.xml ./"
+                ]
+            },
+            "authors": [
+                {
+                    "name": "Revolut",
+                    "homepage": "https://developer.revolut.com/"
+                }
+            ],
+            "description": "Core PHP Library for supporting Revolut plugins",
+            "homepage": "https://developer.revolut.com/docs/guides/accept-payments/plugins/introduction",
+            "transport-options": {
+                "symlink": false,
+                "relative": true
+            },
+            "install-path": "../revolut/plugin"
+        }
+    ],
+    "dev": false,
+    "dev-package-names": []
+}
