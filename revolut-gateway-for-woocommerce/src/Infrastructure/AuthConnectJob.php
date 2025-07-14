@@ -44,12 +44,9 @@ class AuthConnectJob
         }
 
         try {
-            RLog::info("refresh_token job start.");
             $this->tokenRefreshService->refreshToken();
-            RLog::info("refresh_token job completed.");
         } catch (\Exception $e){
-            $dt = \DateTime::createFromFormat('U.u', microtime(true));
-            RLog::error("refreshToken error - " . $e->getMessage() . ' - ' .  $dt->format("H:i:s.u"));
+            
         } finally {
             //job should run in every 9 minutes
             //don't release lock for refresh job.

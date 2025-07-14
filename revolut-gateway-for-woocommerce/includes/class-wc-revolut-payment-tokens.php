@@ -9,6 +9,8 @@
  * @since      2.0.0
  */
 
+use Revolut\Plugin\Infrastructure\Api\MerchantApi;
+
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
@@ -55,7 +57,7 @@ class WC_Revolut_Payment_Tokens {
 
 			$payment_method_id = $token->get_token();
 			try {
-				$gateway_revolut->api_client->delete( "/customers/$revolut_customer_id/payment-methods/$payment_method_id" );
+				MerchantApi::privateLegacy()->delete( "/customers/$revolut_customer_id/payment-methods/$payment_method_id" );
 			} catch ( Exception $e ) {
 				if ( is_account_page() ) {
 					wc_add_notice( $e->getMessage(), 'error' );

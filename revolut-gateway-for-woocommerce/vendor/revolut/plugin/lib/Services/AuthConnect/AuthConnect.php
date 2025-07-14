@@ -120,10 +120,8 @@ class AuthConnect implements TokenRefreshServiceInterface, AuthConnectServiceInt
             $token = $this->refreshToken();
         } catch (Exception $e) {
             $dt = \DateTime::createFromFormat('U.u', microtime(true));
-            RLog::error("refreshToken error - " . $e->getMessage() . ' - ' .  $dt->format("H:i:s.u"));
         } finally {
             $dt = \DateTime::createFromFormat('U.u', microtime(true));
-            RLog::info("release lock for - " . $token->accessToken . ' - ' .  $dt->format("H:i:s.u"));
             $this->lock->release();
         }
 

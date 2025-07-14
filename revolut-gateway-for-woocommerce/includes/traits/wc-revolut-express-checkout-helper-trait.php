@@ -352,14 +352,14 @@ trait WC_Gateway_Revolut_Express_Checkout_Helper_Trait {
 	 * Create Revolut order for express checkout.
 	 */
 	public function create_express_checkout_public_id() {
-		$revolut_public_id = $this->get_revolut_express_checkout_public_id();
+		$revolut_public_id = $this->get_revolut_public_id();
 		$descriptor        = $this->get_revolut_order_descriptor();
 		if ( null === $revolut_public_id ) {
 			$revolut_public_id = $this->create_revolut_order( $descriptor, true );
-			$this->set_revolut_express_checkout_public_id( $revolut_public_id );
+			$this->set_revolut_public_id( $revolut_public_id );
 		} else {
 			$revolut_public_id = $this->update_revolut_order( $descriptor, $revolut_public_id, true );
-			$this->set_revolut_express_checkout_public_id( $revolut_public_id );
+			$this->set_revolut_public_id( $revolut_public_id );
 		}
 
 		return $revolut_public_id;

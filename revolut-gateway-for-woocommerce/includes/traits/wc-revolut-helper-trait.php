@@ -35,25 +35,29 @@ trait WC_Gateway_Revolut_Helper_Trait {
 	 * @return mixed
 	 * @throws Exception Exception.
 	 */
-	public function create_revolut_order( WC_Revolut_Order_Descriptor $order_descriptor, $is_express_checkout = false ) {
-		$capture = 'authorize' === $this->api_settings->get_option( 'payment_action' ) || $is_express_checkout ? 'manual' : 'automatic';
+	public function create_revolut_order( WC_Revolut_Order_Descriptor $order_descriptor, $is_express_checkout = false, $is_pay_by_bank = false ) {
+		$payment_action = $this->api_settings->get_option( 'payment_action' );
+		$capture_mode   = $is_pay_by_bank ? 'automatic' : 'manual';
 
 		$body = array(
 			'amount'       => $order_descriptor->amount,
 			'currency'     => $order_descriptor->currency,
-			'capture_mode' => $capture,
+			'capture_mode' => $capture_mode,
 		);
+
+		if ( $payment_action === 'authorize_and_capture' && ! $is_pay_by_bank ) {
+			$body['cancel_authorised_after'] = WC_REVOLUT_AUTO_CANCEL_TIMEOUT;
+		}
 
 		if ( ! empty( $order_descriptor->revolut_customer_id ) ) {
 			$body['customer'] = array( 'id' => $order_descriptor->revolut_customer_id );
 		}
 
-		if ( $is_express_checkout ) {
-			$body['cancel_authorised_after'] = WC_REVOLUT_AUTO_CANCEL_TIMEOUT;
-			$location_id                     = $this->api_settings->get_revolut_location();
-			if ( $location_id ) {
-				$body['location_id'] = $location_id;
-			}
+		// needed in address validation for RPay fast checkout orders
+		$location_id = $this->api_settings->get_revolut_location();
+
+		if ( $location_id ) {
+			$body['location_id'] = $location_id;
 		}
 
 		$json = MerchantApi::private()->post( '/orders', $body );
@@ -99,7 +103,7 @@ trait WC_Gateway_Revolut_Helper_Trait {
 		 * @return mixed
 		 * @throws Exception Exception.
 		 */
-	public function update_revolut_order( WC_Revolut_Order_Descriptor $order_descriptor, $public_id, $is_revpay_express_checkout = false ) {
+	public function update_revolut_order( WC_Revolut_Order_Descriptor $order_descriptor, $public_id, $is_revpay_express_checkout = false, $is_pay_by_bank = false ) {
 		$order_id = null;
 
 		if ( $public_id ) {
@@ -113,19 +117,19 @@ trait WC_Gateway_Revolut_Helper_Trait {
 		);
 
 		if ( empty( $order_id ) ) {
-			return $this->create_revolut_order( $order_descriptor, $is_revpay_express_checkout );
+			return $this->create_revolut_order( $order_descriptor, $is_revpay_express_checkout, $is_pay_by_bank );
 		}
 
 		$revolut_order = MerchantApi::privateLegacy()->get( "/orders/$order_id" );
 
 		if ( ! isset( $revolut_order['public_id'] ) || ! isset( $revolut_order['id'] ) || 'PENDING' !== $revolut_order['state'] ) {
-			return $this->create_revolut_order( $order_descriptor, $is_revpay_express_checkout );
+			return $this->create_revolut_order( $order_descriptor, $is_revpay_express_checkout, $is_pay_by_bank );
 		}
 
 		$revolut_order = MerchantApi::privateLegacy()->patch( "/orders/$order_id", $body );
 
 		if ( ! isset( $revolut_order['public_id'] ) || ! isset( $revolut_order['id'] ) ) {
-			return $this->create_revolut_order( $order_descriptor, $is_revpay_express_checkout );
+			return $this->create_revolut_order( $order_descriptor, $is_revpay_express_checkout, $is_pay_by_bank );
 		}
 
 		if ( $is_revpay_express_checkout ) {
@@ -775,8 +779,9 @@ trait WC_Gateway_Revolut_Helper_Trait {
 	/**
 	 * Unset Revolut public_id
 	 */
-	protected function unset_revolut_express_checkout_public_id() {
-		WC()->session->__unset( "{$this->config_provider->getConfig()->getMode()}_revolut_express_checkout_public_id" );
+	protected function unset_revolut_pbb_checkout_public_id() {
+		$mode = $this->config_provider->getConfig()->getMode();
+		WC()->session->__unset( $mode . '_revolut_pbb_order_public_id' );
 	}
 
 	/**
@@ -786,15 +791,6 @@ trait WC_Gateway_Revolut_Helper_Trait {
 	 */
 	public function set_revolut_public_id( $value ) {
 		WC()->session->set( "{$this->config_provider->getConfig()->getMode()}_revolut_public_id", $value );
-	}
-
-	/**
-	 * Set Revolut public_id
-	 *
-	 * @param string $value Revolut public id.
-	 */
-	public function set_revolut_express_checkout_public_id( $value ) {
-		WC()->session->set( "{$this->config_provider->getConfig()->getMode()}_revolut_express_checkout_public_id", $value );
 	}
 
 	/**
@@ -819,13 +815,25 @@ trait WC_Gateway_Revolut_Helper_Trait {
 	}
 
 	/**
-	 * Get Revolut public_id
+	 * Set Revolut public_id
+	 *
+	 * @param string $value Revolut public id.
+	 */
+	public function set_revolut_pbb_order_public_id( $value ) {
+		$mode = $this->config_provider->getConfig()->getMode();
+		return WC()->session->set( $mode . '_revolut_pbb_order_public_id', $value );
+	}
+
+	/**
+	 * Get Revolut pbb order public_id
 	 *
 	 * @return array|string|null
 	 */
-	protected function get_revolut_express_checkout_public_id() {
-		return WC()->session->get( "{$this->config_provider->getConfig()->getMode()}_revolut_express_checkout_public_id" );
+	public function get_revolut_pbb_order_public_id() {
+		$mode = $this->config_provider->getConfig()->getMode();
+		return WC()->session->get( $mode . '_revolut_pbb_order_public_id' );
 	}
+
 
 	/**
 	 * Get Revolut Merchant Public Key

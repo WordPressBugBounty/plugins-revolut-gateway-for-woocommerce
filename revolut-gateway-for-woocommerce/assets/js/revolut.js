@@ -323,7 +323,7 @@ jQuery(function ($) {
   /**
    * Handle if success
    */
-  function handlePaymentResult(errorMessage = '') {
+  function handlePaymentResult(errorMessage = '', publicId = null) {
     const currentPaymentMethod = getPaymentMethod()
     const savePaymentMethod = shouldSavePaymentMethod()
     const payment_token = $('input[name="wc-revolut_cc-payment-token"]:checked').val()
@@ -345,7 +345,7 @@ jQuery(function ($) {
     let data = {}
     data['revolut_gateway'] = currentPaymentMethod.methodId
     data['security'] = wc_revolut.nonce.process_payment_result
-    data['revolut_public_id'] = currentPaymentMethod.publicId
+    data['revolut_public_id'] = publicId ?? currentPaymentMethod.publicId
     data['revolut_payment_error'] = errorMessage
     data['wc_order_id'] = wc_order_id
     data['reload_checkout'] = reload_checkout
@@ -683,10 +683,10 @@ jQuery(function ($) {
 
   showPayByBankLogos()
 
-  function showPayByBankLogos() {    
+  function showPayByBankLogos() {
     if (
       $("label[for='payment_method_revolut_pay_by_bank']").length < 1 ||
-       typeof pay_by_bank_logos == 'undefined' ||
+      typeof pay_by_bank_logos == 'undefined' ||
       !pay_by_bank_logos
     ) {
       return
@@ -733,6 +733,24 @@ jQuery(function ($) {
     }
   }
 
+  function createPbbOrder() {
+    let body = {}
+    body['security'] = wc_revolut.nonce.create_revolut_pbb_order
+    return new Promise((resolve, reject) =>
+      $.ajax({
+        type: 'POST',
+        url: getAjaxURL('create_pbb_order'),
+        data: body,
+        success: function (response) {
+          resolve({ publicId: response.pbb_order_public_id })
+        },
+        error: function (jqXHR, textStatus, errorThrown) {
+          reject()
+        },
+      }),
+    )
+  }
+
   function initPayByBankWidget() {
     const currentPaymentMethod = getPaymentMethod()
 
@@ -750,7 +768,7 @@ jQuery(function ($) {
     })
 
     payByBankInstance = instance.payByBank({
-      createOrder: () => Promise.resolve({ publicId: currentPaymentMethod.publicId }),
+      createOrder: () => createPbbOrder(),
       onError: errorMsg => {
         if (errorMsg.error) {
           handlePaymentResult(errorMsg.error)
@@ -759,8 +777,8 @@ jQuery(function ($) {
         }
       },
       onCancel: handleCancel,
-      onSuccess: () => {
-        handlePaymentResult()
+      onSuccess: msg => {
+        handlePaymentResult('', msg.orderId)
       },
     })
   }

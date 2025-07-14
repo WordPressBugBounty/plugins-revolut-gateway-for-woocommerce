@@ -256,12 +256,14 @@ class WC_Gateway_Revolut_Blocks_Support extends Automattic\WooCommerce\Blocks\Pa
 				'amount'   => $descriptor->amount,
 			),
 			'route'                     => array(
-				'create_revolut_order' => get_site_url() . '/?wc-ajax=wc_revolut_create_order',
-				'process_order'        => get_site_url() . '/?wc-ajax=wc_revolut_process_payment_result',
+				'create_revolut_order'     => get_site_url() . '/?wc-ajax=wc_revolut_create_order',
+				'create_revolut_pbb_order' => get_site_url() . '/?wc-ajax=wc_revolut_create_pbb_order',
+				'process_order'            => get_site_url() . '/?wc-ajax=wc_revolut_process_payment_result',
 			),
 			'nonce'                     => array(
-				'create_revolut_order' => wp_create_nonce( 'wc-revolut-create-order' ),
-				'process_order'        => wp_create_nonce( 'wc-revolut-process-payment-result' ),
+				'create_revolut_order'     => wp_create_nonce( 'wc-revolut-create-order' ),
+				'create_revolut_pbb_order' => wp_create_nonce( 'wc-revolut-create-pbb-order' ),
+				'process_order'            => wp_create_nonce( 'wc-revolut-process-payment-result' ),
 			),
 			'fast_checkout_params'      => $this->payment_request_gateway->get_wc_revolut_payment_request_params(),
 		);

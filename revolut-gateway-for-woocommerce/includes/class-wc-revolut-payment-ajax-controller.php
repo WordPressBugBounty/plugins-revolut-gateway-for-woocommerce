@@ -50,6 +50,8 @@ class WC_Revolut_Payment_Ajax_Controller {
 		add_action( 'wc_ajax_revolut_payment_request_log_error', array( $this, 'revolut_payment_request_ajax_log_error' ) );
 		add_action( 'wc_ajax_revolut_payment_request_get_express_checkout_params', array( $this, 'revolut_payment_request_ajax_get_express_checkout_params' ) );
 		add_action( 'wc_ajax_wc_revolut_create_order', array( $this, 'wc_revolut_create_order' ) );
+		add_action( 'wc_ajax_wc_revolut_create_pbb_order', array( $this, 'wc_revolut_create_pbb_order' ) );
+
 
 		if ( is_admin() && current_user_can( 'manage_options' ) ) {
 			add_action( 'wp_ajax_wc_revolut_clear_records', array( $this, 'wc_revolut_clear_records' ) );
@@ -400,7 +402,7 @@ class WC_Revolut_Payment_Ajax_Controller {
 			$revolut_gateway->action_revolut_order( $revolut_order_id, 'cancel' );
 			$revolut_gateway->clear_temp_session( $revolut_order_id );
 			$revolut_public_id = $this->create_revolut_order( $revolut_gateway->get_revolut_order_descriptor(), true );
-			$revolut_gateway->set_revolut_express_checkout_public_id( $revolut_public_id );
+			$revolut_gateway->set_revolut_public_id( $revolut_public_id );
 			wp_send_json(
 				array(
 					'success'           => true,
@@ -456,6 +458,51 @@ class WC_Revolut_Payment_Ajax_Controller {
 		check_ajax_referer( 'wc-revolut-log-errors', 'security' );
 		$error_message = isset( $_POST['revolut_payment_request_error'] ) ? wc_clean( wp_unslash( $_POST['revolut_payment_request_error'] ) ) : '';
 		$this->log_error( $error_message );
+	}
+
+
+	/**
+	 * Ajax endpoint for creating pay by bank orders
+	 *
+	 * @throws Exception Exception.
+	 */
+	public function wc_revolut_create_pbb_order() {
+		check_ajax_referer( 'wc-revolut-create-pbb-order', 'security' );
+		try {
+			$pbb_order_public_id = $this->get_revolut_pbb_order_public_id();
+			$revolut_customer_id = $this->get_or_create_revolut_customer();
+			$descriptor          = new WC_Revolut_Order_Descriptor(
+				WC()->cart->get_total( '' ),
+				get_woocommerce_currency(),
+				$revolut_customer_id
+			);
+
+			$return_data = array();
+
+			if ( $pbb_order_public_id ) {
+				$pbb_order_public_id = $this->update_revolut_order( $descriptor, $pbb_order_public_id, false, true );
+				if ( $pbb_order_public_id ) {
+					$return_data['revolut_pbb_order_updated'] = true;
+				}
+			} else {
+				$pbb_order_public_id = $this->create_revolut_order( $descriptor, false, true );
+				$this->set_revolut_pbb_order_public_id( $pbb_order_public_id );
+			}
+
+			if ( empty( $pbb_order_public_id ) ) {
+				throw new Exception( 'Something went wrong while trying to update revolut order' );
+			}
+			$return_data['success']             = true;
+			$return_data['pbb_order_public_id'] = $pbb_order_public_id;
+			$return_data['pbb_order_amount']    = $descriptor->amount;
+			wp_send_json( $return_data );
+		} catch ( Exception $e ) {
+			$this->log_error( 'wc_revolut_create_pbb_order: ' . $e );
+			$return_data['status']  = 'fail';
+			$return_data['success'] = false;
+			wp_send_json( $return_data );
+		}
+
 	}
 
 	/**
