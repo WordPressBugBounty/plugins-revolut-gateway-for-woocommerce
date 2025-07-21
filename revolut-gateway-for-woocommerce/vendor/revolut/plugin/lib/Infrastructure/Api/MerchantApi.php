@@ -2,11 +2,12 @@
 
 namespace Revolut\Plugin\Infrastructure\Api;
 
-use Revolut\Plugin\Infrastructure\Api\ApplePay\ApplePayApi;
 use Revolut\Plugin\Infrastructure\Api\MerchantApiClient;
 use Revolut\Plugin\Services\Http\HttpClientInterface;
 use Revolut\Plugin\Infrastructure\Api\Auth\AuthStrategyFactory;
+use Revolut\Plugin\Infrastructure\Api\ApplePay\ApplePayApi;
 use Revolut\Plugin\Infrastructure\Api\Webhooks\WebhooksApi;
+use Revolut\Plugin\Infrastructure\Api\MerchantDetails\MerchantDetailsApi;
 
 // Facade class for Merchant Api
 
@@ -70,5 +71,10 @@ final class MerchantApi
     public static function webhooks()
     {
         return new WebhooksApi(self::privateLegacy());
+    }
+
+    public static function merchantDetails()
+    {
+        return new MerchantDetailsApi(self::public());
     }
 }

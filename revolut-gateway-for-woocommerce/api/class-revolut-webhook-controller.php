@@ -10,6 +10,9 @@
  * @since      2.0.0
  */
 
+use Revolut\Plugin\Infrastructure\Api\MerchantApi;
+use Revolut\Plugin\Services\Log\RLog;
+
 /**
  * Revolut_Webhook_Controller class
  */
@@ -248,24 +251,60 @@ class Revolut_Webhook_Controller extends \WC_REST_Data_Controller {
 	public function handle_revolut_webhook( $request ) {
 		$parameters = $request->get_params();
 		$order_id   = '';
+		$event      = '';
 
 		$this->log_info( 'start handle_revolut_webhook_callbacks' );
 		$this->log_info( $parameters );
 
-		if ( isset( $parameters['order_id'] ) && isset( $parameters['event'] ) && 'ORDER_COMPLETED' === $parameters['event'] ) {
+		if ( isset( $parameters['order_id'] ) ) {
 			$order_id = $parameters['order_id'];
 		}
 
-		if ( empty( $order_id ) ) {
+		if ( isset( $parameters['event'] ) ) {
+			$event = $parameters['event'];
+		}
+
+		if ( empty( $order_id ) || empty( $event ) ) {
 			$parameters = $request->get_body();
 			$parameters = json_decode( $parameters, true );
-			if ( isset( $parameters['order_id'] ) && isset( $parameters['event'] ) ) {
+
+			if ( isset( $parameters['order_id'] ) ) {
 				$order_id = $parameters['order_id'];
+			}
+
+			if ( isset( $parameters['event'] ) ) {
+				$event = $parameters['event'];
 			}
 		}
 
 		if ( empty( $order_id ) ) {
-			return new WP_REST_Response( array( 'status' => 'Failed' ), 400 );
+			return new WP_REST_Response(
+				array(
+					'status'  => 'Failed',
+					'message' => 'missing order id',
+				),
+				400
+			);
+		}
+
+		if ( empty( $event ) ) {
+			return new WP_REST_Response(
+				array(
+					'status'  => 'Failed',
+					'message' => 'missing event',
+				),
+				400
+			);
+		}
+
+		if ( ! in_array( $event, array( 'ORDER_COMPLETED', 'ORDER_AUTHORISED' ) ) ) {
+			return new WP_REST_Response(
+				array(
+					'status'  => 'Failed',
+					'message' => 'Unrecognized order event',
+				),
+				400
+			);
 		}
 
 		$wc_order_id = $this->get_wc_order_id( $order_id );
@@ -274,15 +313,51 @@ class Revolut_Webhook_Controller extends \WC_REST_Data_Controller {
 			return new WP_REST_Response( array( 'status' => 'Failed' ), 404 );
 		}
 
-		// force webhook callback to wait, in order to be sure that the main payment process has ended.
-		$wait_for_main_process_time = ( WC_REVOLUT_WAIT_FOR_ORDER_TIME * 4 );
-		sleep( $wait_for_main_process_time );
-
 		$wc_order = wc_get_order( $wc_order_id['wc_order_id'] );
 
 		if ( ! $wc_order || ! empty( $wc_order->get_transaction_id() ) ) {
-			return new WP_REST_Response( array( 'status' => 'Failed' ), 422 );
+			return new WP_REST_Response(
+				array(
+					'status'  => 'Failed',
+					'message' => 'WC order already completed',
+				),
+				422
+			);
 		}
+
+		if ( $event === 'ORDER_AUTHORISED' ) {
+			try {
+
+				$webhook_action = $wc_order->get_meta( $order_id . '_webhook_authorised_event_action' );
+
+				if ( $webhook_action !== 'capture' ) {
+					return new WP_REST_Response(
+						array(
+							'status'  => 'success',
+							'message' => 'Order should have been captured by main process',
+						),
+						200
+					);
+				}
+
+				MerchantApi::privateLegacy()->post( "orders/$order_id/capture" );
+				RLog::debug( "Successfuly captured order $order_id via webhook event handler" );
+
+			} catch ( Exception $e ) {
+				RLog::error( 'Unable to capture order via webhook event handler - error :  ' . $e->getMessage() );
+				return new WP_REST_Response(
+					array(
+						'status'  => 'Failed',
+						'message' => 'Unable to capture order via webhook event handler',
+					),
+					500
+				);
+			}
+		}
+
+		// force webhook callback to wait, in order to be sure that the main payment process has ended.
+		$wait_for_main_process_time = ( WC_REVOLUT_WAIT_FOR_ORDER_TIME * 4 );
+		sleep( $wait_for_main_process_time );
 
 		$wc_order_status       = empty( $wc_order->get_status() ) ? '' : $wc_order->get_status();
 		$is_pay_by_bank_method = $wc_order->get_payment_method() === WC_Gateway_Revolut_Pay_By_Bank::GATEWAY_ID;

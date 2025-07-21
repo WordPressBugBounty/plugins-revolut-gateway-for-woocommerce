@@ -777,7 +777,7 @@ abstract class WC_Payment_Gateway_Revolut extends WC_Payment_Gateway_CC {
 			$wc_order->add_order_note( 'Payment has been successfully authorized (Order ID: ' . $revolut_order_id . ').' );
 
 			// maybe capture order
-			$this->maybe_capture_revolut_order( $revolut_order_id );
+			$this->maybe_capture_revolut_order( $revolut_order_id, $wc_order );
 
 			// check payment result and update order status.
 			$this->handle_revolut_order_result( $wc_order, $revolut_order_id );
@@ -994,10 +994,11 @@ abstract class WC_Payment_Gateway_Revolut extends WC_Payment_Gateway_CC {
 	/**
 	 * Capture revolut order if needed
 	 *
-	 * @param string $revolut_order_id
+	 * @param string   $revolut_order_id
+	 * @param WC_Order $wc_order
 	 * @return void
 	 */
-	public function maybe_capture_revolut_order( $revolut_order_id ) {
+	public function maybe_capture_revolut_order( $revolut_order_id, $wc_order ) {
 
 		if ( $this->id === WC_Gateway_Revolut_Pay_By_Bank::GATEWAY_ID ) {
 			return;
@@ -1019,6 +1020,9 @@ abstract class WC_Payment_Gateway_Revolut extends WC_Payment_Gateway_CC {
 
 		if ( 'authorised' !== $revolut_order['state'] ) {
 			RLog::error( "Expected order $revolut_order_id to be in AUTHORISED state - actual state : " . $revolut_order['state'] );
+			$wc_order->update_meta_data( $revolut_order_id . '_webhook_authorised_event_action', 'capture' );
+			$wc_order->save();
+			return;
 		}
 
 		$this->action_revolut_order( $revolut_order_id, 'capture' );
