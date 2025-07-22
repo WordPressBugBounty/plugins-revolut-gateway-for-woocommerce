@@ -13,6 +13,16 @@ class MerchantDetailsApi implements MerchantDetailsApiInterface
         $this->merchantApiClient = $merchantApiClient;
     }
 
+    public function availablePaymentMethods(int $amount, string $currency): array
+    {
+
+        $response =  $this->merchantApiClient->get('available-payment-methods', [
+            'amount' => $amount,
+            'currency' => $currency
+        ]);
+
+        return isset($response['available_payment_methods']) ? $response['available_payment_methods'] : [];
+    }
 
     public function getDetails(): array
     {

@@ -11,23 +11,29 @@ class StoreDetails implements StoreDetailsInterface
     private $storeDetailsAdapter;
     private $merchantDetails;
     private $repo;
-    private $config;
+    private $apiConfig;
+
+    private ?array $availablePaymentMethods = null;
+    private ?array $merchantFeatures = null;
 
     public function __construct(
         StoreDetailsAdapterInterface $storeDetailsAdapter,
         MerchantDetailsApiInterface $merchantDetails,
-        ConfigInterface $config,
+        ConfigInterface $apiConfig,
         OptionRepositoryInterface $repo
     ) {
         $this->storeDetailsAdapter = $storeDetailsAdapter;
         $this->merchantDetails = $merchantDetails;
         $this->repo = $repo;
-        $this->config = $config;
+        $this->apiConfig = $apiConfig;
     }
 
     public function getStoreFeatures(): array
     {
-        return $this->merchantDetails->getFeatures();
+        if (empty($merchantFeatures)) {
+            $this->merchantFeatures = $this->merchantDetails->getFeatures();
+        }
+        return $this->merchantFeatures;
     }
 
     public function getStoreDomain(): string
@@ -35,35 +41,35 @@ class StoreDetails implements StoreDetailsInterface
         return $this->storeDetailsAdapter->getStoreDomain();
     }
 
+    public function getAvailablePaymentMethods(?int $amount = null, ?string $currency = null): array
+    {
+        if (!isset($amount)) {
+            $amount = 0;
+        }
+
+        if (!isset($currency)) {
+            $currency = $this->getStoreCurrency();
+        }
+
+        if (empty($availablePaymentMethods)) {
+            $this->availablePaymentMethods = $this->merchantDetails->availablePaymentMethods($amount, $currency);
+        }
+
+        return $this->availablePaymentMethods;
+    }
+
     public function getStoreWebhookEndpoint(): string
     {
-        return $this->storeDetailsAdapter->getStoreWebhookEndpoint();
+        $domain = $this->getStoreDomain();
+        $endpoint = rtrim($this->storeDetailsAdapter->getStoreWebhookEndpoint(), '/');
+        $endpoint = ltrim($endpoint, '/');
+        $mode = $this->apiConfig->getMode();
+
+        return "https://{$domain}/{$endpoint}/{$mode}";
     }
 
     public function getStoreCurrency(): string
     {
         return $this->storeDetailsAdapter->getStoreCurrency();
-    }
-
-    public function getStoreLegalCountryCode(): string
-    {
-        $mode = $this->config->getMode();
-
-        $legalCountryOptionKey = $mode . '_merchant_legal_country';
-
-        $cachedValue = $this->repo->get($legalCountryOptionKey);
-
-        if ($cachedValue) {
-            return $cachedValue;
-        }
-
-        $details = $this->merchantDetails->getDetails();
-
-        if (isset($details['legal_country'])) {
-            $this->repo->add($legalCountryOptionKey, $details['legal_country']);
-            return $details['legal_country'];
-        }
-
-        return '';
     }
 }

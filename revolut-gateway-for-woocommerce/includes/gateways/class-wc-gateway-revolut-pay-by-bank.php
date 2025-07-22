@@ -111,7 +111,7 @@ class WC_Gateway_Revolut_Pay_By_Bank extends WC_Payment_Gateway_Revolut {
 	 * Check is payment method available.
 	 */
 	public function is_supported() {
-		return $this->is_payment_method_available( self::METHOD_NAME ) && $this->check_feature_support( self::FLAG_NAME );
+		return $this->is_payment_method_available( self::METHOD_NAME );
 	}
 
 	/**

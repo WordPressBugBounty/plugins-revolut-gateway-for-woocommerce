@@ -3,7 +3,7 @@ Contributors: revolutbusiness
 Tags: revolut, revolut business, revolut pay, payments, gateway
 Requires at least: 4.4
 Tested up to: 6.8.1
-Stable tag: 4.20.2
+Stable tag: 4.20.3
 Requires PHP: 7.2
 License: GPLv2 or later
 License URI: http://www.apache.org/licenses/LICENSE-2.0
@@ -98,6 +98,9 @@ To start accepting payments from your customers at great rates, install the plug
 5. The Revolut Pay Button settings
 
 == Changelog ==
+= 4.20.3 =
+* Enable Pay by bank for UK merchants
+
 = 4.20.2 =
 * Fixed an issue where payments failed to capture after remaining in the processing state for too long
 

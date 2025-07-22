@@ -3,24 +3,24 @@
 namespace Revolut\Wordpress\Presentation;
 
 use Revolut\Plugin\Services\ApplePay\ApplePayOnboardingService;
-use Revolut\Plugin\Services\Config\Store\StoreConfigInterface;
 use Revolut\Plugin\Services\Http\HttpResourceInterface;
 use Revolut\Plugin\Services\Webhooks\WebhooksEvents;
 use Revolut\Plugin\Services\Webhooks\WebhooksInterface;
 use Revolut\Plugin\Presentation\PostInstallSetupResourceInterface;
+use Revolut\Plugin\Services\Config\Store\StoreDetailsInterface;
 
 class PostInstallSetupResource implements PostInstallSetupResourceInterface, HttpResourceInterface
 {
-    private $storeConfig;
+    private $storeDetails;
     private $applePayOnboardingService;
     private $webhooksService;
     function __construct(
-        StoreConfigInterface $storeConfig,
+        StoreDetailsInterface $storeDetails,
         ApplePayOnboardingService $applePayOnboardingService,
         WebhooksInterface $webhooksService
         )
     {   
-        $this->storeConfig = $storeConfig;
+        $this->storeDetails = $storeDetails;
         $this->applePayOnboardingService = $applePayOnboardingService;
         $this->webhooksService = $webhooksService;
     }
@@ -36,13 +36,13 @@ class PostInstallSetupResource implements PostInstallSetupResourceInterface, Htt
             WebhooksEvents::ORDER_COMPLETED_EVENT
         ];
 
-        $webhookUrl = $this->storeConfig->getStoreWebhookEndpoint();
+        $webhookUrl = $this->storeDetails->getStoreWebhookEndpoint();
 
        return $this->webhooksService->registerWebhook($webhookUrl, $events);
     }
 
     private function applePayOnboardingSetup() {
-        $domain = $this->storeConfig->getStoreDomain();
+        $domain = $this->storeDetails->getStoreDomain();
         return $this->applePayOnboardingService->onBoardDomain($domain);
     }
 

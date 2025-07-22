@@ -21,8 +21,10 @@ use Revolut\Plugin\Infrastructure\Api\Auth\AccessTokenAuthStrategy;
 use Revolut\Plugin\Infrastructure\Api\Auth\AuthStrategyFactory;
 use Revolut\Plugin\Infrastructure\Api\MerchantApi;
 use Revolut\Plugin\Services\ApplePay\ApplePayOnboardingService;
+use Revolut\Plugin\Services\Config\Store\StoreDetails;
+use Revolut\Plugin\Services\Config\Store\StoreDetailsInterface;
 use Revolut\Plugin\Services\Webhooks\WebhooksService;
-use Revolut\Wordpress\Infrastructure\Config\StoreConfigProvider;
+use Revolut\Wordpress\Infrastructure\Config\StoreDetailsAdapter;
 
 class ServiceProvider
 {
@@ -40,7 +42,7 @@ class ServiceProvider
 
     public static function postInstallSetupResource() {
         return new PostInstallSetupResource(
-            self::storeConfig(),
+            self::storeDetails(),
             self::applePayOnboardingService(), 
             self::webhooksService(), 
         );
@@ -54,9 +56,16 @@ class ServiceProvider
         );
     }
     
-    public static function storeConfig() {
-        return new StoreConfigProvider(self::apiConfig());
+    public static function storeDetails(): StoreDetailsInterface
+    {
+        return new StoreDetails(
+            new StoreDetailsAdapter(),
+            MerchantApi::merchantDetails(),
+            self::apiConfig(),
+            self::optionRepository()
+        );
     }
+
     public static function apiConfig(): Config
     {
         return self::apiConfigProvider()->getConfig();
