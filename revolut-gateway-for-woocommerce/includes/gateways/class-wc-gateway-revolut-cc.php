@@ -237,6 +237,8 @@ class WC_Gateway_Revolut_CC extends WC_Payment_Gateway_Revolut {
 			$wc_token = WC_Payment_Tokens::get( $payment_token_id );
 			$this->pay_by_saved_method( $revolut_order_id, $wc_token );
 
+			$this->maybe_capture_revolut_order( $revolut_order_id, $renewal_order );
+
 			// payment should be processed until this point, if not throw an error.
 			$this->check_payment_processed( $revolut_order_id );
 
@@ -249,7 +251,6 @@ class WC_Gateway_Revolut_CC extends WC_Payment_Gateway_Revolut {
 
 			$message = sprintf( 'Subscription charge successfully completed by Revolut (Order ID: %s)', $revolut_order_id );
 			$renewal_order->add_order_note( $message );
-			$renewal_order->set_transaction_id( $revolut_order_id );
 			WC_Subscriptions_Manager::process_subscription_payments_on_order( $renewal_order );
 		} catch ( Exception $e ) {
 			WC_Subscriptions_Manager::process_subscription_payment_failure_on_order( $renewal_order );

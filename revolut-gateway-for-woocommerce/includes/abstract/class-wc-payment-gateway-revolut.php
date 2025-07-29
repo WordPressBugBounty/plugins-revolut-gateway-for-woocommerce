@@ -1020,7 +1020,7 @@ abstract class WC_Payment_Gateway_Revolut extends WC_Payment_Gateway_CC {
 
 		if ( 'authorised' !== $revolut_order['state'] ) {
 			RLog::error( "Expected order $revolut_order_id to be in AUTHORISED state - actual state : " . $revolut_order['state'] );
-			$wc_order->update_meta_data( $revolut_order_id . '_webhook_authorised_event_action', 'capture' );
+			$wc_order->update_meta_data( strtoupper( $revolut_order_id ) . '_webhook_authorised_event_action', 'capture' );
 			$wc_order->save();
 			return;
 		}
