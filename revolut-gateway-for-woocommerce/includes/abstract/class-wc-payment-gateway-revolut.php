@@ -113,6 +113,13 @@ abstract class WC_Payment_Gateway_Revolut extends WC_Payment_Gateway_CC {
 	);
 
 	/**
+	 * Class initialised.
+	 *
+	 * @var bool
+	 */
+	public static $initialised;
+
+	/**
 	 * Constructor
 	 */
 	public function __construct() {
@@ -133,10 +140,15 @@ abstract class WC_Payment_Gateway_Revolut extends WC_Payment_Gateway_CC {
 		add_action( 'woocommerce_update_options_payment_gateways_' . $this->id, array( $this, 'process_admin_options' ) );
 		add_action( 'woocommerce_checkout_order_processed', array( $this, 'woocommerce_checkout_revolut_order_processed' ), 300, 3 );
 		add_action( 'woocommerce_order_status_changed', array( $this, 'order_action_from_woocommerce' ), 300, 3 );
-		add_action( 'added_option', array( $this, 'plugin_options_updated' ), 10, 1 );
-		add_action( 'updated_option', array( $this, 'plugin_options_updated' ), 10, 1 );
+
 		add_action( 'woocommerce_update_order', array( $this, 'save_shipments_information' ), 10, 1 );
 		add_action( 'wp_enqueue_scripts', array( $this, 'wc_revolut_enqueue_scripts' ) );
+
+		if ( null === self::$initialised ) {
+			self::$initialised = true;
+			add_action( 'added_option', array( $this, 'plugin_options_updated' ), 10, 1 );
+			add_action( 'updated_option', array( $this, 'plugin_options_updated' ), 10, 1 );
+		}
 	}
 
 	/**
@@ -1604,8 +1616,9 @@ abstract class WC_Payment_Gateway_Revolut extends WC_Payment_Gateway_CC {
 		if ( WC_Revolut_Settings_API::$option_key !== $option_key ) {
 			return;
 		}
-
 		// after options are updated re-initialisation of Merchant Api is required.
+		ServiceProvider::resetApiConfigProvider();
+		$this->config_provider = ServiceProvider::apiConfigProvider();
 		ServiceProvider::initMerchantApi();
 
 		$this->update_revolut_merchant_public_key();

@@ -22,12 +22,11 @@ class ApiConfigProvider implements ConfigProviderInterface
     {
         $this->repository = $repository;
         $this->tokenRepository = $tokenRepository;
+        $this->configOptions = $this->repository->get('woocommerce_revolut_settings');
     }
 
     public function getConfig(?string $mode = null): Config
-    {
-        $this->configOptions = $this->repository->get('woocommerce_revolut_settings');
-
+    {        
         if(!$mode){
             $mode = isset($this->configOptions['mode']) ? $this->configOptions['mode'] : '';
         }

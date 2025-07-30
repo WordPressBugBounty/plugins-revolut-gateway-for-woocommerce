@@ -28,9 +28,22 @@ use Revolut\Wordpress\Infrastructure\Config\StoreDetailsAdapter;
 
 class ServiceProvider
 {
+    public static $configProviderInstance = null;
+
+    public static function resetApiConfigProvider()
+    {   
+        self::$configProviderInstance = new ApiConfigProvider(self::optionRepository(), self::optionTokenRepository());
+    }
+    
     public static function apiConfigProvider(): ApiConfigProvider
-    {
-        return new ApiConfigProvider(self::optionRepository(), self::optionTokenRepository());
+    {   
+        if(self::$configProviderInstance != null){
+            return self::$configProviderInstance;
+        }
+
+        self::$configProviderInstance = new ApiConfigProvider(self::optionRepository(), self::optionTokenRepository());
+        
+        return self::$configProviderInstance;
     }
 
     public static function applePayOnboardingService() {
