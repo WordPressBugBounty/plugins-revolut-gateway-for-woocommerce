@@ -31,8 +31,8 @@ class WebhooksService implements WebhooksInterface
 
             $result = $this->webhooksApi->register($url, $events);
 
-            $this->repo->addOrUpdate($this->WebhookUrlOptionKey(), $url);
-            $this->repo->addOrUpdate($this->WebhookSigningSecretOptionKey(), $result['signing_secret']);
+            $this->repo->addOrUpdate($this->webhookUrlOptionKey(), $url);
+            $this->repo->addOrUpdate($this->webhookSigningSecretOptionKey(), $result['signing_secret']);
 
             RLog::debug("WebhookService, successfully registered webhook $url");
 
@@ -48,8 +48,8 @@ class WebhooksService implements WebhooksInterface
     {
         try {
             $this->webhooksApi->delete($id);
-            $this->repo->delete($this->WebhookUrlOptionKey());
-            $this->repo->delete($this->WebhookSigningSecretOptionKey());
+            $this->repo->delete($this->webhookUrlOptionKey());
+            $this->repo->delete($this->webhookSigningSecretOptionKey());
             return true;
         } catch (\Throwable $e) {
             RLog::error("WebhooksService, unable to delete webhook $id - " . $e->getMessage());
@@ -57,13 +57,13 @@ class WebhooksService implements WebhooksInterface
         return false;
     }
 
-    public function WebhookUrlOptionKey()
+    public function webhookUrlOptionKey()
     {
         $mode = $this->config->getMode();
         return $mode . "_revolut_webhook_domain";
     }
 
-    public function WebhookSigningSecretOptionKey()
+    public function webhookSigningSecretOptionKey()
     {
         $mode = $this->config->getMode();
         return $mode . "_revolut_webhook_domain_signing_secret";

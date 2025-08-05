@@ -234,12 +234,15 @@ abstract class WC_Payment_Gateway_Revolut extends WC_Payment_Gateway_CC {
 		$is_express_checkout = false,
 		$revolut_pay_redirected = false
 	) {
+		$revolut_order_id = $this->get_revolut_order_by_public_id( $revolut_public_id );
 		try {
 			$billing_phone = $billing_data['billing_phone'];
 			$billing_email = $billing_data['billing_email'];
 
 			$revolut_customer_id = $this->get_or_create_revolut_customer( $billing_phone, $billing_email );
 			$this->update_revolut_customer( $revolut_customer_id, $billing_phone );
+			$this->maybe_attach_revolut_customer_to_subscription_order_with_guest_user( $revolut_order_id, $revolut_customer_id );
+
 		} catch ( Exception $e ) {
 			$this->log_error( 'creating revolut customer failed error : ' . $e->getMessage() );
 		}
@@ -264,7 +267,6 @@ abstract class WC_Payment_Gateway_Revolut extends WC_Payment_Gateway_CC {
 		}
 
 		$this->maybe_cancel_previous_wc_order( $revolut_public_id, $wc_order_id );
-		$revolut_order_id = $this->get_revolut_order_by_public_id( $revolut_public_id );
 		$this->save_wc_order_id( $revolut_public_id, $revolut_order_id, $wc_order_id, $wc_order->get_order_number() );
 		$wc_order->update_meta_data( 'revolut_payment_public_id', $revolut_public_id );
 		$wc_order->update_meta_data( 'revolut_payment_order_id', $revolut_order_id );
@@ -1883,6 +1885,30 @@ abstract class WC_Payment_Gateway_Revolut extends WC_Payment_Gateway_CC {
 			$this->get_wc_revolut_payment_request_params()
 		);
 
+	}
+
+	/**
+	 * @param string $revolut_order_id
+	 * @param string $revolut_customer_id
+	 * @return void
+	 */
+	public function maybe_attach_revolut_customer_to_subscription_order_with_guest_user( $revolut_order_id, $revolut_customer_id ) {
+		if ( ! class_exists( 'WC_Subscriptions_Cart' ) ) {
+			return;
+		}
+
+		if ( ! WC_Subscriptions_Cart::cart_contains_subscription() ) {
+			return;
+		}
+
+		$revolut_order = MerchantApi::privateLegacy()->get( "orders/$revolut_order_id" );
+
+		if ( isset( $revolut_order['customer_id'] ) ) {
+			return;
+		}
+
+		RLog::debug( "Ataching customer id $revolut_customer_id into order $revolut_order_id" );
+		MerchantApi::privateLegacy()->patch( "orders/$revolut_order_id", array( 'customer_id' => $revolut_customer_id ) );
 	}
 
 }

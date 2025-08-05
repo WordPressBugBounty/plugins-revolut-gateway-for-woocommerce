@@ -13,8 +13,8 @@ class StoreDetails implements StoreDetailsInterface
     private $repo;
     private $apiConfig;
 
-    private ?array $availablePaymentMethods = null;
-    private ?array $merchantFeatures = null;
+    private $availablePaymentMethods = null;
+    private $merchantFeatures = null;
 
     public function __construct(
         StoreDetailsAdapterInterface $storeDetailsAdapter,

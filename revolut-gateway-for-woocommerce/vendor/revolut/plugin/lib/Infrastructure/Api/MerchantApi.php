@@ -6,6 +6,7 @@ use Revolut\Plugin\Infrastructure\Api\MerchantApiClient;
 use Revolut\Plugin\Services\Http\HttpClientInterface;
 use Revolut\Plugin\Infrastructure\Api\Auth\AuthStrategyFactory;
 use Revolut\Plugin\Infrastructure\Api\ApplePay\ApplePayApi;
+use Revolut\Plugin\Infrastructure\Api\Customers\CustomersApi;
 use Revolut\Plugin\Infrastructure\Api\Webhooks\WebhooksApi;
 use Revolut\Plugin\Infrastructure\Api\MerchantDetails\MerchantDetailsApi;
 
@@ -76,5 +77,10 @@ final class MerchantApi
     public static function merchantDetails()
     {
         return new MerchantDetailsApi(self::public());
+    }
+
+    public static function customersApi()
+    {
+        return new CustomersApi(self::privateLegacy());
     }
 }
