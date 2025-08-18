@@ -139,6 +139,10 @@ class WC_Revolut_Apple_Pay_OnBoarding {
 	 * @param array $new_options new options.
 	 */
 	public function on_revolut_options_update( $old_options, $new_options ) {
+		ServiceProvider::resetApiConfigProvider();
+		$this->config_provider = ServiceProvider::apiConfigProvider();
+		ServiceProvider::initMerchantApi();
+
 		$this->maybe_onboard_apple_pay_merchant();
 	}
 

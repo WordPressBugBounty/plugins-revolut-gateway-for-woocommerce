@@ -71,14 +71,14 @@ class WC_Revolut_Settings_API extends WC_Settings_API {
 	 *
 	 * @var string
 	 */
-	public static $webhook_endpoint_new = '/wp-json/wc/v3/revolut/webhook';
+	public static $webhook_endpoint_new = 'wc/v3/revolut/webhook';
 
 	/**
 	 * New address validation webhook endpoint path
 	 *
 	 * @var string
 	 */
-	public static $address_validation_webhook_endpoint_new = '/wp-json/wc/v3/revolut/address/validation/webhook';
+	public static $address_validation_webhook_endpoint_new = 'wc/v3/revolut/address/validation/webhook';
 
 	/**
 	 * Class instance.
@@ -144,7 +144,18 @@ class WC_Revolut_Settings_API extends WC_Settings_API {
 			return;
 		}
 
-		$this->check_api_key();
+		if ( ! $this->options_updated() ) {
+			return;
+		}
+
+		if ( ! $this->store_has_valid_connection() ) {
+			return $this->add_error_message( __( 'Revolut requires connection to your account.', 'revolut-gateway-for-woocommerce' ) );
+		}
+
+		ServiceProvider::resetApiConfigProvider();
+		$this->config_provider = ServiceProvider::apiConfigProvider();
+		ServiceProvider::initMerchantApi();
+
 		$this->maybe_register_webhook();
 		$this->maybe_register_synchronous_webhooks();
 	}
@@ -250,42 +261,55 @@ class WC_Revolut_Settings_API extends WC_Settings_API {
 	}
 
 	/**
-	 *
-	 * Method to generate API key input with OAuth button
-	 *
 	 * @param string $field field name
-	 *
-	 * Custom field:  Connect button.
 	 */
 	public function generate_api_connect_html( $field ) {
 		ob_start();
 
-		if ( 'api_key' === $field ) {
-			$api_key = $this->get_option( 'api_key' );
-		} else {
-			$api_key = $this->get_option( 'api_key_dev' );
-		}
+		$api_key            = $this->get_option( $field );
+		$is_api_key_present = ! empty( $api_key );
+		$api_key_value      = esc_attr( $api_key );
+
 		?>
-		<tr valign="top" class="woocommerce_revolut_<?php echo esc_html( $field ); ?>_container">
+		<tr valign="top" id="woocommerce_revolut_<?php echo esc_html( $field ); ?>_container">
 			<th scope="row" class="titledesc">
-				<label for="woocommerce_revolut_<?php echo esc_html( $field ); ?>">Production API secret key <span class="woocommerce-help-tip" tabindex="0" aria-label="Production API secret key from your Merchant settings on Revolut."></span></label>
+				<label id="revolut-connection-type-label_<?php echo esc_attr( $field ); ?>">
+					<span class="revolut-connection-label-text">
+						Connect to revolut
+					</span>
+					<span>
+						<?php echo wc_help_tip( 'Directly Connect your Revolut account. or use your production api secret keys instead', 'revolut-gateway-for-woocommerce' ); ?>
+					</span>
+				</label>
 			</th>
 
 			<td class="forminp">
-				<fieldset>
-					<legend class="screen-reader-text"><span>Production API secret key</span></legend>
-					<input class="input-text regular-input enabled-live" type="password" name="woocommerce_revolut_<?php echo esc_html( $field ); ?>" id="woocommerce_revolut_<?php echo esc_html( $field ); ?>" style="" value="<?php echo esc_html( $api_key ); ?>" placeholder="">
-				</fieldset>
-				<?php if ( empty( $api_key ) ) { ?>
-					<br>
-				<div id="connect_container_<?php echo esc_html( $field ); ?>">
+				<!-- API Key Input -->
+				<div id="revolut-api-key-wrapper-<?php echo esc_attr( $field ); ?>" style="<?php echo $is_api_key_present ? '' : 'display:none;'; ?>">
+					<fieldset>
+						<input class="input-text regular-input" 
+							type="password" 
+							name="woocommerce_revolut_<?php echo esc_attr( $field ); ?>" 
+							id="woocommerce_revolut_<?php echo esc_attr( $field ); ?>" 
+							value="<?php echo $api_key_value; ?>" />
+					</fieldset>
+
+					<!-- Toggle to OAuth -->
+					<div style="margin-top:5px;<?php echo $is_api_key_present ? 'display:none;' : ''; ?>">
+						<a href="#" class="revolut-switch-to-oauth">Or connect your Revolut account</a>
+					</div>
 				</div>
-				<?php } ?>
+
+				<!-- OAuth Connect UI -->
+				<div id="revolut-oauth-wrapper-<?php echo esc_attr( $field ); ?>" style="<?php echo $is_api_key_present ? 'display:none;' : ''; ?>">
+					<div id="oauth_connection_container_<?php echo esc_attr( $field ); ?>"></div>
+				</div>
 			</td>
 		</tr>
-
 		<?php
+
 		return ob_get_clean();
+
 	}
 
 	/**
@@ -305,7 +329,6 @@ class WC_Revolut_Settings_API extends WC_Settings_API {
 			);
 
 			wp_enqueue_style( 'revolut-ui-kit-style', WC_REVOLUT_PLUGIN_URL . '/client/dist/uikit/style.css', array(), WC_GATEWAY_REVOLUT_VERSION );
-			wp_enqueue_style( 'revolut-admin-style', WC_REVOLUT_PLUGIN_URL . '/assets/css/admin.style.css', array(), WC_GATEWAY_REVOLUT_VERSION );
 
 			wp_localize_script(
 				WC_REVOLUT_OAUTH_CONNECT_SCRIPT_HANDLE,
@@ -326,31 +349,18 @@ class WC_Revolut_Settings_API extends WC_Settings_API {
 	 * Check if store has valid tokens
 	 */
 	public function hasValidTokens() {
-		$token_repo = new OptionTokenRepository(
-			new OptionRepository()
-		);
+		$tokens = ( new OptionTokenRepository( new OptionRepository() ) )->getTokens();
 
-		$tokens = $token_repo->getTokens();
-
-		$has_valid_tokens = false;
-
-		if ( ! empty( $tokens ) ) {
-			try {
-				$res = MerchantApi::privateLegacy()->get( '/webhooks' );
-				if ( ! $res ) {
-					return false;
-				}
-				if ( in_array( 'code', array_keys( $res ? $res : array() ), true ) ) {
-					$has_valid_tokens = false;
-				} else {
-					$has_valid_tokens = true;
-				}
-			} catch ( Exception $e ) {
-				$has_valid_tokens = false;
-			}
+		if ( empty( $tokens ) ) {
+			return false;
 		}
 
-		return $has_valid_tokens;
+		try {
+			MerchantApi::privateLegacy()->get( '/webhooks' );
+			return true;
+		} catch ( Exception $e ) {
+			return false;
+		}
 	}
 
 
@@ -375,85 +385,85 @@ class WC_Revolut_Settings_API extends WC_Settings_API {
 	 * @since 2.0.0
 	 */
 	public function add_revolut_description() {
-		if ( $this->check_is_get_data_submitted( 'page' ) && $this->check_is_get_data_submitted( 'section' ) ) {
-			$is_revolut_section = 'wc-settings' === $this->get_request_data( 'page' ) && in_array( $this->get_request_data( 'section' ), WC_REVOLUT_GATEWAYS, true );
+		// Ensure 'page' and 'section' GET data is present
 
-			if ( $is_revolut_section ) {
-				if ( isset( $this->settings['api_key'] ) && empty( $this->settings['api_key'] ) ) {
-					?>
-					<div class="notice notice-info sf-notice-nux is-dismissible" xmlns="" id="revolut_notice">
-						<div class="notice-content">
-							<p>
-								Welcome to the <b>Revolut Gateway for Woocommerce plugin!</b>
-							</p>
-							<p>
-								To start accepting payments from your customers at great rates, you'll need to follow
-								three
-								simple steps:
-							</p>
-							<ul style="list-style-type: disc; margin-left: 50px;">
-								<li>
-									<a href="https://business.revolut.com/signup">Sign up for Revolut Business</a> if
-									you
-									don't
-									have an account already.
-								</li><li>
-									Once your Revolut Business account has been approved, <a target="_blank" href="https://business.revolut.com/merchant">apply
-										for a Merchant
-										Account</a>
-								</li>
-								<li>
-									<a target="_blank" href="https://business.revolut.com/settings/merchant-api">Get
-										your Production API key</a>
-									and
-									paste it in the corresponding field below
-								</li>
-							</ul>
-							<p>
-								<a target="_blank" href="https://www.revolut.com/business/online-payments">Find out
-									more</a> about why
-								accepting
-								payments through Revolut is the right decision for your business.
-							</p>
-							<p>
-								If you'd like to know more about how to configure this plugin for your needs, <a
-										target="_blank"
-										href="https://developer.revolut.com/docs/accept-payments/plugins/woocommerce/configuration">check
-									out
-									our documentation.</a>
-							</p>
-						</div>
-					</div>
-					<?php
-				} else {
-					?>
-					<script>
-						jQuery(document).ready(function ($) {
-							$("#revolut_notice").hide();
-						});
-					</script>
-					<?php
-				}
-			}
+		if ( ! $this->options_updated() ) {
+			return;
 		}
+
+		if ( $this->store_has_valid_connection() ) {
+			return;
+		}
+
+		?>
+		<div class="notice notice-info sf-notice-nux is-dismissible" id="revolut_notice">
+			<div class="notice-content">
+				<p>
+					Welcome to the <strong>Revolut Gateway for WooCommerce plugin!</strong>
+				</p>
+				<p>
+					To start accepting payments from your customers at great rates, follow these three simple steps:
+				</p>
+				<ul style="list-style-type: disc; margin-left: 50px;">
+					<li>
+						<a href="<?php echo esc_url( 'https://business.revolut.com/signup' ); ?>" target="_blank" rel="noopener noreferrer">
+							Sign up for Revolut
+						</a>
+						if you don't have an account already.
+					</li>
+					<li>
+						Once your Revolut account has been approved, 
+						<a href="<?php echo esc_url( 'https://business.revolut.com/merchant' ); ?>" target="_blank" rel="noopener noreferrer">
+							apply for a Merchant Account
+						</a>
+					</li>
+					<li>
+						Connect your Revolut account by clicking the button below
+					</li>
+				</ul>
+				<p>
+					<a href="<?php echo esc_url( 'https://www.revolut.com/business/online-payments' ); ?>" target="_blank" rel="noopener noreferrer">
+						Find out more
+					</a>
+					about why accepting payments through Revolut is the right decision for your business.
+				</p>
+				<p>
+					If you'd like to know more about how to configure this plugin for your needs, 
+					<a href="<?php echo esc_url( 'https://developer.revolut.com/docs/accept-payments/plugins/woocommerce/configuration' ); ?>" target="_blank" rel="noopener noreferrer">
+						check out our documentation.
+					</a>
+				</p>
+			</div>
+		</div>
+		<?php
 	}
 
 	/**
-	 * Add admin notice when set up failed
+	 * @return boolean
 	 */
-	public function check_api_key() {
-		if ( $this->check_is_get_data_submitted( 'page' ) && $this->check_is_get_data_submitted( 'section' ) ) {
-			$is_revolut_section = 'wc-settings' === $this->get_request_data( 'page' ) && in_array( $this->get_request_data( 'section' ), WC_REVOLUT_GATEWAYS, true );
+	public function options_updated() {
+		$data_submited = $this->check_is_get_data_submitted( 'page' ) && $this->check_is_get_data_submitted( 'section' );
 
-			if ( $is_revolut_section ) {
-				$api_key_sandbox = $this->get_option( 'api_key_sandbox' );
-				$api_key_live    = $this->get_option( 'api_key' );
-
-				if ( empty( $api_key_sandbox ) && empty( $api_key_live ) ) {
-					$this->add_error_message( __( 'Revolut requires an API Key to work.', 'revolut-gateway-for-woocommerce' ) );
-				}
-			}
+		if ( ! $data_submited ) {
+			return false;
 		}
+
+		$is_revolut_section = 'wc-settings' === $this->get_request_data( 'page' ) && in_array( $this->get_request_data( 'section' ), WC_REVOLUT_GATEWAYS, true );
+
+		return $is_revolut_section;
+	}
+
+	/**
+	 * @return boolean
+	 */
+	public function store_has_valid_connection() {
+		if ( $this->hasValidTokens() ) {
+			return true;
+		}
+
+		return ! empty( $this->get_option( 'api_key_live' ) )
+			|| ! empty( $this->get_option( 'api_key_dev' ) )
+			|| ! empty( $this->get_option( 'api_key_sandbox' ) );
 	}
 
 	/**
@@ -583,7 +593,7 @@ class WC_Revolut_Settings_API extends WC_Settings_API {
 			$mode = $this->get_option( 'mode' );
 			$mode = empty( $mode ) ? 'sandbox' : $mode;
 
-			$web_hook_url = get_site_url( null, self::$webhook_endpoint_new . '/' . $mode, 'https' );
+			$web_hook_url = rest_url() . self::$webhook_endpoint_new . "/$mode";
 
 			$body = array(
 				'url'    => $web_hook_url,
@@ -617,7 +627,7 @@ class WC_Revolut_Settings_API extends WC_Settings_API {
 			$mode = $this->get_option( 'mode' );
 			$mode = empty( $mode ) ? 'sandbox' : $mode;
 
-			$web_hook_url = get_site_url( null, self::$address_validation_webhook_endpoint_new . '/' . $mode, 'https' );
+			$web_hook_url = rest_url() . self::$address_validation_webhook_endpoint_new . "/$mode";
 
 			if ( strpos( $web_hook_url, 'http://localhost' ) !== false ) {
 				return false;

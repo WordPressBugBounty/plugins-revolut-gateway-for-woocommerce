@@ -1,9 +1,11 @@
 jQuery(document).ready(function ($) {
   $('#woocommerce_revolut_cc_restore_button').hide()
   const revolutMode = $('#woocommerce_revolut_mode')
-  const apiDevKey = $('#woocommerce_revolut_api_key_dev').parents().closest('tr')
+  const apiDevContainer = $('#woocommerce_revolut_api_key_dev_container')
   const apiSandboxKey = $('#woocommerce_revolut_api_key_sandbox').parents().closest('tr')
-  const apiLiveKey = $('#woocommerce_revolut_api_key').parents().closest('tr')
+  const oauthDevContainer = $('#woocommerce_revolut_oauth_api_key_dev_container')
+  const oauthLiveContainer = $('#woocommerce_revolut_oauth_api_key_container')
+  const apiLiveContainer = $('#woocommerce_revolut_api_key_container')
   const payment_action = $('#woocommerce_revolut_payment_action')
 
   const capture_checkbox = $('#woocommerce_revolut_accept_capture')
@@ -92,17 +94,22 @@ jQuery(document).ready(function ($) {
   function change(mode) {
     if (mode == 'sandbox') {
       apiSandboxKey.show()
-      apiLiveKey.hide()
-      apiDevKey.hide()
+      apiLiveContainer.hide()
+      apiDevContainer.hide()
+      oauthDevContainer.hide()
+      oauthLiveContainer.hide()
     } else if (mode == 'dev') {
       apiSandboxKey.hide()
-      apiLiveKey.hide()
-      apiDevKey.show()
-      apiLiveKey.hide()
+      apiLiveContainer.hide()
+      apiDevContainer.show()
+      oauthDevContainer.show()
+      oauthLiveContainer.hide()
     } else {
       apiSandboxKey.hide()
-      apiDevKey.hide()
-      apiLiveKey.show()
+      apiDevContainer.hide()
+      oauthDevContainer.hide()
+      oauthLiveContainer.show()
+      apiLiveContainer.show()
     }
   }
 
@@ -249,3 +256,28 @@ jQuery(document).ready(function ($) {
     })
   })
 })
+
+
+jQuery(document).ready(function ($) {
+  $('.revolut-switch-to-oauth').on('click', function (e) {
+    e.preventDefault();
+
+    const container = $(this).closest('td');
+    container.find('[id^="revolut-api-key-wrapper-"]').hide();
+    container.find('[id^="revolut-oauth-wrapper-"]').show();
+    const labelText = $('.revolut-connection-label-text');
+    labelText.text('Connect to Revolut');
+
+  });
+
+  $('.revolut-switch-to-api').on('click', function (e) {
+    e.preventDefault();
+
+    const container = $(this).closest('td');
+    container.find('[id^="revolut-oauth-wrapper-"]').hide();
+    container.find('[id^="revolut-api-key-wrapper-"]').show();
+    const labelText = $('.revolut-connection-label-text');
+    labelText.text('Production API secret key');
+
+  });
+});

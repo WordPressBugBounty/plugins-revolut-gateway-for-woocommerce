@@ -14,9 +14,12 @@ $last                       = count( $revolut_configuration_tabs );
 $idx                        = 0;
 $tab_active                 = false;
 ?>
-<div class="wc-revolut-settings-logo">
-	<img style="height:50px;margin-bottom: 15px;margin-left:15px" src="<?php echo esc_url( WC_REVOLUT_PLUGIN_URL . '/assets/images/revolut_business_logo.png' ); ?>"/>
+
+<div class="wc-revolut-settings-header">
+	<img class="revolut-logo" src="<?php echo esc_url( 'https://assets.revolut.com/assets/banks/Revolut.svg' ); ?>" alt="Revolut Logo" />
+	<span class="revolut-title">Revolut Payment Gateway Settings</span>
 </div>
+
 <div class="revolut-settings-nav">
 	<?php
 	foreach ( $revolut_configuration_tabs as $tab_id => $rev_tab ) :
