@@ -6,6 +6,9 @@ jQuery(function ($) {
   let address_info = null
   let wc_order_id = null
 
+  const POLLING_TIMEOUT = 3000
+  const MAX_POLLING_COUNT = 10
+
   function handleError(message) {
     $.blockUI({ message: null, overlayCSS: { background: '#fff', opacity: 0.6 } })
 
@@ -215,6 +218,85 @@ jQuery(function ($) {
     })
   }
 
+  function pollPaymentResult(publicId, hasError, captured = true) {
+    return new Promise((resolve, reject) => {
+      if (hasError) {
+        return resolve()
+      }
+
+      let pollingCount = 0
+
+      const interval = setInterval(() => {
+        if (pollingCount > MAX_POLLING_COUNT) {
+          clearInterval(interval)
+          resolve()
+        }
+
+        $.ajax({
+          type: 'POST',
+          url: getAjaxURL('check_payment', 'wc_revolut_'),
+          data: {
+            revolut_public_id: publicId,
+            is_captured: captured ? 1 : 0,
+            security: wc_revolut_payment_request_params.nonce.wc_revolut_check_payment,
+          },
+
+          success: function (response) {
+            if (response && response.payment_completed) {
+              clearInterval(interval)
+              resolve()
+            }
+            pollingCount++
+          },
+        })
+      }, POLLING_TIMEOUT)
+    })
+  }
+
+  function capturePayment(publicId, hasError, { totalRetry = 3, delay = 300 } = {}) {
+    return new Promise((resolve, reject) => {
+      if (hasError) {
+        return resolve()
+      }
+
+      const tryToCapturePayment = retryCount => {
+        $.ajax({
+          type: 'POST',
+          url: getAjaxURL('capture_payment', 'wc_revolut_'),
+          data: {
+            revolut_public_id: publicId,
+            security: wc_revolut_payment_request_params.nonce.wc_revolut_capture_payment,
+          },
+          success: function (response) {
+            if (response && response.is_captured) {
+              resolve()
+            } else {
+              retryOrFail(new Error('failed to capture payment'), retryCount)
+            }
+          },
+          error: function (jqXHR, textStatus, errorThrown) {
+            retryOrFail(new Error('failed to capture payment'), retryCount)
+          },
+        })
+      }
+
+      const retryOrFail = (error, retryCount) => {
+        if (retryCount > 0) {
+          setTimeout(() => tryToCapturePayment(retryCount - 1), delay)
+        } else {
+          reject(error)
+        }
+      }
+
+      tryToCapturePayment(totalRetry)
+    })
+  }
+
+  function stopProcessing() {
+    $.unblockUI()
+    $('.blockUI.blockOverlay').hide()
+  }
+
   function submitOrder(errorMessage = '', revolut_gateway = 'revolut_payment_request') {
     $.blockUI({ message: null, overlayCSS: { background: '#fff', opacity: 0.6 } })
 
@@ -229,22 +311,34 @@ jQuery(function ($) {
     data['revolut_save_payment_method'] = 0
     data['wc-revolut_cc-payment-token'] = ''
 
-    sendRequest(getAjaxURL('process_payment_result', 'wc_revolut_'), data).then(
-      response => {
-        if (response.result === 'success') {
-          window.location.href = response.redirect
-          return
-        }
-        $.unblockUI()
-        $('.blockUI.blockOverlay').hide()
+    capturePayment(wc_revolut_payment_request_params.revolut_public_id, errorMessage)
+      .catch(error => {
+        stopProcessing()
+        displayErrorMessage(`<div class="woocommerce-error">${error.message}</div>`)
+      })
+      .then(() =>
+        pollPaymentResult(
+          wc_revolut_payment_request_params.revolut_public_id,
+          errorMessage,
+        ).then(() => {
+          sendRequest(getAjaxURL('process_payment_result', 'wc_revolut_'), data).then(
+            response => {
+              if (response.result === 'success') {
+                window.location.href = response.redirect
+                return
+              }
+              $.unblockUI()
+              $('.blockUI.blockOverlay').hide()
 
-        if (!response.messages || typeof response.messages == 'undefined') {
-          response.messages = `<div class="woocommerce-error">${wc_revolut_payment_request_params.error_messages.checkout_general}</div>`
-        }
+              if (!response.messages || typeof response.messages == 'undefined') {
+                response.messages = `<div class="woocommerce-error">${wc_revolut_payment_request_params.error_messages.checkout_general}</div>`
+              }
 
-        cancelOrder(response.messages)
-      },
-    )
+              cancelOrder(response.messages)
+            },
+          )
+        }),
+      )
   }
 
   function submitWooCommerceOrder(payment_method = 'revolut_payment_request') {
@@ -525,6 +619,7 @@ jQuery(function ($) {
         throw error
       })
   }
+
   function getRevolutOrderPublicId() {
     return new Promise((resolve, reject) => {
       sendRequest(getAjaxURL('get_express_checkout_params'), {

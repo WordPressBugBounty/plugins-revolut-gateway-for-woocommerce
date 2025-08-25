@@ -44,6 +44,9 @@ class WC_Revolut_Payment_Ajax_Controller {
 		add_action( 'wc_ajax_wc_revolut_validate_order_pay_form', array( $this, 'wc_revolut_validate_order_pay_form' ) );
 		add_action( 'wc_ajax_wc_revolut_get_order_pay_billing_info', array( $this, 'wc_revolut_get_order_pay_billing_info' ) );
 		add_action( 'wc_ajax_wc_revolut_get_customer_info', array( $this, 'wc_revolut_get_customer_info' ) );
+		add_action( 'wc_ajax_wc_revolut_check_payment', array( $this, 'wc_revolut_check_payment' ) );
+		add_action( 'wc_ajax_wc_revolut_capture_payment', array( $this, 'wc_revolut_capture_payment' ) );
+		add_action( 'wc_ajax_wc_revolut_pay_with_token', array( $this, 'wc_revolut_pay_with_token' ) );
 		add_action( 'wc_ajax_wc_revolut_process_payment_result', array( $this, 'wc_revolut_process_payment_result' ) );
 		add_action( 'wc_ajax_revolut_payment_request_cancel_order', array( $this, 'revolut_payment_request_ajax_cancel_order' ) );
 		add_action( 'wc_ajax_revolut_payment_request_set_error_message', array( $this, 'revolut_payment_request_ajax_set_error_message' ) );
@@ -389,6 +392,89 @@ class WC_Revolut_Payment_Ajax_Controller {
 	}
 
 	/**
+	 * Check is payment completed
+	 */
+	public function wc_revolut_capture_payment() {
+		check_ajax_referer( 'wc-revolut-capture-payment', 'security' );
+
+		$revolut_public_id = isset( $_POST['revolut_public_id'] ) ? wc_clean( wp_unslash( $_POST['revolut_public_id'] ) ) : '';
+		$revolut_order_id  = $this->get_revolut_order_by_public_id( $revolut_public_id );
+
+		$is_captured = false;
+
+		if ( ! empty( $revolut_order_id ) ) {
+			$is_captured = $this->capture_payment( $revolut_order_id );
+		}
+
+
+		wp_send_json(
+			array(
+				'is_captured' => $is_captured,
+			)
+		);
+
+	}
+
+	/**
+	 * Pay with saved token
+	 */
+	public function wc_revolut_pay_with_token() {
+		try {
+			check_ajax_referer( 'wc-revolut-pay-with-token', 'security' );
+
+			$revolut_public_id = isset( $_POST['revolut_public_id'] ) ? wc_clean( wp_unslash( $_POST['revolut_public_id'] ) ) : '';
+			$wc_token_id       = isset( $_POST['payment_token'] ) ? wc_clean( wp_unslash( $_POST['payment_token'] ) ) : '';
+
+			$revolut_order_id = $this->get_revolut_order_by_public_id( $revolut_public_id );
+
+			$paid_successfully = false;
+
+			if ( ! empty( $revolut_order_id ) ) {
+				$wc_token = $this->get_selected_payment_token( $wc_token_id );
+				$this->pay_by_saved_method( $revolut_order_id, $wc_token );
+				$paid_successfully = true;
+			}
+
+			wp_send_json(
+				array(
+					'success' => $paid_successfully,
+				)
+			);
+		} catch ( Exception $e ) {
+			wp_send_json( array( 'success' => false ) );
+			$this->log_error( $e );
+		}
+
+	}
+
+	/**
+	 * Check is payment completed
+	 */
+	public function wc_revolut_check_payment() {
+		check_ajax_referer( 'wc-revolut-check-payment', 'security' );
+
+		$revolut_public_id = isset( $_POST['revolut_public_id'] ) ? wc_clean( wp_unslash( $_POST['revolut_public_id'] ) ) : '';
+		$is_captured       = isset( $_POST['is_captured'] ) ? wc_clean( wp_unslash( $_POST['is_captured'] ) ) : '';
+		$revolut_order_id  = $this->get_revolut_order_by_public_id( $revolut_public_id );
+
+		$payment_completed = false;
+
+		if ( ! empty( $revolut_order_id ) ) {
+			$payment_action = ServiceProvider::apiConfigProvider()->getConfigValue( 'payment_action' );
+
+			$payment_completed = $is_captured && 'authorize' !== $payment_action ? $this->is_completed_payment( $revolut_order_id )
+				: $this->is_authorised_payment( $revolut_order_id );
+		}
+
+		wp_send_json(
+			array(
+				'payment_completed' => $payment_completed,
+				'is_captured'       => $is_captured,
+			)
+		);
+	}
+
+	/**
 	 * Cancel api order
 	 */
 	public function revolut_payment_request_ajax_cancel_order() {
@@ -481,13 +567,15 @@ class WC_Revolut_Payment_Ajax_Controller {
 
 			if ( $pbb_order_public_id ) {
 				$pbb_order_public_id = $this->update_revolut_order( $descriptor, $pbb_order_public_id, false, true );
+
 				if ( $pbb_order_public_id ) {
 					$return_data['revolut_pbb_order_updated'] = true;
 				}
 			} else {
 				$pbb_order_public_id = $this->create_revolut_order( $descriptor, false, true );
-				$this->set_revolut_pbb_order_public_id( $pbb_order_public_id );
 			}
+
+			$this->set_revolut_pbb_order_public_id( $pbb_order_public_id );
 
 			if ( empty( $pbb_order_public_id ) ) {
 				throw new Exception( 'Something went wrong while trying to update revolut order' );

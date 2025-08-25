@@ -253,9 +253,6 @@ class Revolut_Webhook_Controller extends \WC_REST_Data_Controller {
 		$revolut_order_id = '';
 		$event            = '';
 
-		$this->log_info( 'start handle_revolut_webhook_callbacks' );
-		$this->log_info( $parameters );
-
 		if ( isset( $parameters['order_id'] ) ) {
 			$revolut_order_id = $parameters['order_id'];
 		}
@@ -297,7 +294,7 @@ class Revolut_Webhook_Controller extends \WC_REST_Data_Controller {
 			);
 		}
 
-		if ( ! in_array( $event, array( 'ORDER_COMPLETED', 'ORDER_AUTHORISED' ) ) ) {
+		if ( ! in_array( $event, array( 'ORDER_COMPLETED', 'ORDER_AUTHORISED' ), true ) ) {
 			return new WP_REST_Response(
 				array(
 					'status'  => 'Failed',
@@ -307,17 +304,13 @@ class Revolut_Webhook_Controller extends \WC_REST_Data_Controller {
 			);
 		}
 
-		$wc_order_id = $this->get_wc_order_id( $revolut_order_id );
+		$wc_order_id = (int) $this->get_wc_order_id_by_revolut_order_id( $revolut_order_id );
 
-		if ( empty( $wc_order_id ) || empty( $wc_order_id['wc_order_id'] ) ) {
+		if ( empty( $wc_order_id ) ) {
 			return new WP_REST_Response( array( 'status' => 'Failed' ), 404 );
 		}
 
-		// force webhook callback to wait, in order to be sure that the main payment process has ended.
-		$wait_for_main_process_time = ( WC_REVOLUT_WAIT_FOR_ORDER_TIME * 4 );
-		sleep( $wait_for_main_process_time );
-
-		$wc_order = wc_get_order( $wc_order_id['wc_order_id'] );
+		$wc_order = wc_get_order( $wc_order_id );
 
 		if ( empty( $wc_order ) ) {
 
@@ -332,52 +325,37 @@ class Revolut_Webhook_Controller extends \WC_REST_Data_Controller {
 			);
 		}
 
-		if ( $this->is_wc_order_completed( $wc_order ) ) {
-			return new WP_REST_Response(
-				array(
-					'status'  => 'Failed',
-					'message' => 'WC order is already completed',
-				),
-				400
-			);
-		}
+		if ( 'ORDER_AUTHORISED' === $event ) {
+			$is_subscription_payment = (int) $wc_order->get_meta( 'is_subscription_order' );
 
-		if ( $event === 'ORDER_AUTHORISED' ) {
+			$this->capture_payment( $revolut_order_id );
 
-			if ( $this->should_capture_revolut_order( $wc_order, $revolut_order_id ) ) {
-				return $this->capture_authorised_revolut_order( $revolut_order_id );
+			$result       = $this->process_authorised_order( $revolut_order_id, $wc_order->get_id(), $is_subscription_payment, true );
+			$response_msg = $result ? 'Payment AUTHORISED event hanled by webhook' : 'Payment AUTHORISED event hanled by main process';
+
+			if ( $result ) {
+				RLog::info( 'Order ID(' . $wc_order->get_id() . ' - ' . $revolut_order_id . ') ' . $response_msg );
 			}
 
 			return new WP_REST_Response(
 				array(
-					'status'  => 'Failed',
-					'message' => 'Order should have been captured by main process',
+					'status'  => 'OK',
+					'message' => $response_msg,
 				),
-				400
+				200
 			);
-
 		}
 
-		$wc_order_status       = empty( $wc_order->get_status() ) ? '' : $wc_order->get_status();
-		$is_pay_by_bank_method = $wc_order->get_payment_method() === WC_Gateway_Revolut_Pay_By_Bank::GATEWAY_ID;
-		$check_wc_status       = 'processing' === $wc_order_status || 'completed' === $wc_order_status || ( 'hold' === $wc_order_status && $is_pay_by_bank_method );
-		$check_capture         = isset( $wc_order->get_meta( 'revolut_capture' )[0] ) ? $wc_order->get_meta( 'revolut_capture' )[0] : '';
+		$result       = $this->process_captured_order( $revolut_order_id, $wc_order->get_id() );
+		$response_msg = $result ? 'Payment COMPLETED event hanled by webhook' : 'Payment COMPLETED event hanled by main process';
 
-		$data = array();
-
-		if ( 'yes' === $check_capture || $check_wc_status ) {
-			return new WP_REST_Response( array( 'status' => 'Failed' ), 422 );
+		if ( $result ) {
+			RLog::info( 'Order ID(' . $wc_order->get_id() . ' - ' . $revolut_order_id . ') ' . $response_msg );
 		}
-
-		/* translators: %s: Revolut Order ID. */
-		$wc_order->add_order_note( sprintf( __( 'Payment has been successfully captured (Order ID: %s)', 'revolut-gateway-for-woocommerce' ), $revolut_order_id ) );
-		$wc_order->payment_complete( $revolut_order_id );
-		$wc_order->update_meta_data( 'revolut_capture', 'yes', $wc_order_id['wc_order_id'] );
-		$wc_order->save();
 
 		$data = array(
 			'status'   => 'OK',
-			'response' => 'Completed',
+			'response' => $response_msg,
 		);
 
 		return new WP_REST_Response( $data, 200 );
@@ -398,81 +376,5 @@ class Revolut_Webhook_Controller extends \WC_REST_Data_Controller {
 		}
 
 		return $this->handle_revolut_webhook( $request );
-	}
-
-	/**
-	 * Get Woocommerce Order ID
-	 *
-	 * @param String $order_id Revolut order id.
-	 *
-	 * @return array|object|void|null
-	 */
-	public function get_wc_order_id( $order_id ) {
-		global $wpdb;
-		return $wpdb->get_row( $wpdb->prepare( 'SELECT wc_order_id FROM ' . $wpdb->prefix . "wc_revolut_orders WHERE order_id=UNHEX(REPLACE(%s, '-', ''))", array( $order_id ) ), ARRAY_A ); // db call ok; no-cache ok.
-	}
-
-	/**
-	 * Check if WC order completed
-	 *
-	 * @param WC_Order $wc_order
-	 * @return boolean
-	 */
-	public function is_wc_order_completed( $wc_order ) {
-		return ! empty( $wc_order->get_transaction_id() );
-	}
-
-	/**
-	 * @param string $revolut_order_id
-	 * @return boolean
-	 */
-	public function is_revolut_order_authorised( $revolut_order_id ) {
-		$revolut_order = MerchantApi::private()->get( "orders/$revolut_order_id" );
-		$order_state   = isset( $revolut_order['state'] ) ? $revolut_order['state'] : '';
-
-		if ( strtolower( $order_state ) !== 'authorised' ) {
-			RLog::error( "WebhookEventHandler - Expected order $revolut_order_id to be in authorised state - actual state $order_state" );
-			return false;
-		}
-
-		return true;
-	}
-
-	/**
-	 * @param string $revolut_order_id
-	 * @return WP_REST_Response
-	 */
-	public function capture_authorised_revolut_order( $revolut_order_id ) {
-		try {
-
-			MerchantApi::privateLegacy()->post( "orders/$revolut_order_id/capture" );
-			RLog::debug( "Successfuly captured order $revolut_order_id via webhook event handler" );
-			return new WP_REST_Response( array( 'status' => 'success' ), 200 );
-
-		} catch ( Exception $e ) {
-			RLog::error( 'WebhookEventHandler :  ' . $e->getMessage() );
-			return new WP_REST_Response(
-				array(
-					'status'  => 'Failed',
-					'message' => 'Unable to capture order via webhook event handler',
-				),
-				500
-			);
-		}
-	}
-
-	/**
-	 * @param WC_Order $wc_order
-	 * @param string   $revolut_order_id
-	 * @return boolean
-	 */
-	public function should_capture_revolut_order( $wc_order, $revolut_order_id ) {
-
-		if ( ! $this->is_revolut_order_authorised( $revolut_order_id ) ) {
-			return false;
-		}
-
-		$webhook_action = $wc_order->get_meta( strtoupper( $revolut_order_id ) . '_webhook_authorised_event_action' );
-		return $webhook_action === 'capture';
 	}
 }

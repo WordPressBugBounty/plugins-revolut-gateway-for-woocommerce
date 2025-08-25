@@ -200,6 +200,7 @@ class WC_Gateway_Revolut_CC extends WC_Payment_Gateway_Revolut {
 	public function scheduled_subscription_payment( $amount_to_charge, $renewal_order ) {
 		try {
 			$wc_order_id = $renewal_order->get_id();
+			$renewal_order->update_meta_data( 'is_subscription_order', true );
 
 			$payment_token_id = $renewal_order->get_meta( '_payment_token_id', true );
 
@@ -221,7 +222,7 @@ class WC_Gateway_Revolut_CC extends WC_Payment_Gateway_Revolut {
 
 			$descriptor = new WC_Revolut_Order_Descriptor( $amount_to_charge, $renewal_order->get_currency(), $revolut_customer_id );
 
-			$revolut_payment_public_id = $this->create_revolut_order( $descriptor );
+			$revolut_payment_public_id = $this->create_subscription_order( $descriptor );
 
 			// resolve revolut_public_id into revolut_order_id.
 			$revolut_order_id = $this->get_revolut_order_by_public_id( $revolut_payment_public_id );
@@ -237,20 +238,17 @@ class WC_Gateway_Revolut_CC extends WC_Payment_Gateway_Revolut {
 			$wc_token = WC_Payment_Tokens::get( $payment_token_id );
 			$this->pay_by_saved_method( $revolut_order_id, $wc_token );
 
-			$this->maybe_capture_revolut_order( $revolut_order_id, $renewal_order );
-
 			// payment should be processed until this point, if not throw an error.
 			$this->check_payment_processed( $revolut_order_id );
 
-			// payment process began...
-			$renewal_order->update_status( 'on-hold' );
-			$renewal_order->add_order_note( 'Payment has been successfully authorized (Order ID: ' . $revolut_order_id . ').' );
-
 			// check payment result and update order status.
-			$this->handle_revolut_order_result( $renewal_order, $revolut_order_id );
+			$this->handle_revolut_order_result( $renewal_order, $revolut_order_id, true );
 
-			$message = sprintf( 'Subscription charge successfully completed by Revolut (Order ID: %s)', $revolut_order_id );
+			$message = sprintf( 'Subscription charge successfully initiated by Revolut (Order ID: %s)', $revolut_order_id );
 			$renewal_order->add_order_note( $message );
+			$renewal_order->update_meta_data( 'revolut_payment_order_id', $revolut_order_id );
+			$renewal_order->update_status( 'on-hold' );
+
 			WC_Subscriptions_Manager::process_subscription_payments_on_order( $renewal_order );
 		} catch ( Exception $e ) {
 			WC_Subscriptions_Manager::process_subscription_payment_failure_on_order( $renewal_order );
@@ -530,24 +528,6 @@ class WC_Gateway_Revolut_CC extends WC_Payment_Gateway_Revolut {
 		$icons_str .= '</div>';
 
 		return apply_filters( 'woocommerce_gateway_icon', $icons_str, $this->id );
-	}
-
-	/**
-	 * Grab selected payment token from Request
-	 *
-	 * @param int $wc_token_id WooCommerce payment token id.
-	 * @return string
-	 * @throws Exception Exception.
-	 */
-	public function get_selected_payment_token( $wc_token_id ) {
-		$wc_token          = WC_Payment_Tokens::get( $wc_token_id );
-		$payment_method_id = $wc_token->get_token();
-
-		if ( empty( $payment_method_id ) || $wc_token->get_user_id() !== get_current_user_id() ) {
-			throw new Exception( 'Can not process payment token' );
-		}
-
-		return $wc_token;
 	}
 
 	/**

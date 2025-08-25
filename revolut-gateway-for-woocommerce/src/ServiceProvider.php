@@ -13,6 +13,7 @@ use Revolut\Wordpress\Presentation\PostInstallSetupResource;
 
 use Revolut\Plugin\Infrastructure\Lock\TokenRefreshJobLockService;
 use Revolut\Plugin\Infrastructure\Lock\TokenRefreshLockService;
+use Revolut\Plugin\Infrastructure\Lock\LockService;
 use Revolut\Plugin\Services\AuthConnect\AuthConnect;
 
 use Revolut\Plugin\Infrastructure\Repositories\OptionTokenRepository;
@@ -152,6 +153,33 @@ class ServiceProvider
             self::tokenRefreshJobLockService(),
             self::authConnectService(),
             self::apiConfigProvider()
+        );
+    }
+
+    public static function processCapturedOrderLock($key, $timeout = 30): LockService
+    {
+        return new LockService(
+            self::optionRepository(),
+            strtoupper("revolut_process_captured_order_lock_{$key}"),
+            $timeout
+        );
+    }
+
+    public static function processAuthorisedOrderLock($key, $timeout = 30): LockService
+    {
+        return new LockService(
+            self::optionRepository(),
+            strtoupper("revolut_process_authorised_order_lock_{$key}"),
+            $timeout
+        );
+    }
+
+    public static function capturePaymentLock($key, $timeout = 30): LockService
+    {
+        return new LockService(
+            self::optionRepository(),
+            strtoupper("revolut_capture_payment_lock_{$key}"),
+            $timeout
         );
     }
     

@@ -261,7 +261,9 @@ class WC_Revolut_Settings_API extends WC_Settings_API {
 	}
 
 	/**
-	 * @param string $field field name
+	 * Generate api_connect view html.
+	 *
+	 * @param string $field field name.
 	 */
 	public function generate_api_connect_html( $field ) {
 		ob_start();
@@ -291,7 +293,7 @@ class WC_Revolut_Settings_API extends WC_Settings_API {
 							type="password" 
 							name="woocommerce_revolut_<?php echo esc_attr( $field ); ?>" 
 							id="woocommerce_revolut_<?php echo esc_attr( $field ); ?>" 
-							value="<?php echo $api_key_value; ?>" />
+							value="<?php echo esc_html( $api_key_value ); ?>" />
 					</fieldset>
 
 					<!-- Toggle to OAuth -->
@@ -385,7 +387,7 @@ class WC_Revolut_Settings_API extends WC_Settings_API {
 	 * @since 2.0.0
 	 */
 	public function add_revolut_description() {
-		// Ensure 'page' and 'section' GET data is present
+		// Ensure 'page' and 'section' GET data is present.
 
 		if ( ! $this->options_updated() ) {
 			return;
@@ -439,6 +441,8 @@ class WC_Revolut_Settings_API extends WC_Settings_API {
 	}
 
 	/**
+	 * Hool options_updated.
+	 *
 	 * @return boolean
 	 */
 	public function options_updated() {
@@ -454,6 +458,8 @@ class WC_Revolut_Settings_API extends WC_Settings_API {
 	}
 
 	/**
+	 * Check if store has valid connection.
+	 *
 	 * @return boolean
 	 */
 	public function store_has_valid_connection() {

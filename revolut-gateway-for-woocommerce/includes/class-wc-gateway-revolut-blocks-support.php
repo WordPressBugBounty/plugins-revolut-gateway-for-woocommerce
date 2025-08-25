@@ -259,11 +259,17 @@ class WC_Gateway_Revolut_Blocks_Support extends Automattic\WooCommerce\Blocks\Pa
 				'create_revolut_order'     => get_site_url() . '/?wc-ajax=wc_revolut_create_order',
 				'create_revolut_pbb_order' => get_site_url() . '/?wc-ajax=wc_revolut_create_pbb_order',
 				'process_order'            => get_site_url() . '/?wc-ajax=wc_revolut_process_payment_result',
+				'pay_with_token'           => get_site_url() . '/?wc-ajax=wc_revolut_pay_with_token',
+				'check_payment'            => get_site_url() . '/?wc-ajax=wc_revolut_check_payment',
+				'capture_payment'          => get_site_url() . '/?wc-ajax=wc_revolut_capture_payment',
 			),
 			'nonce'                     => array(
 				'create_revolut_order'     => wp_create_nonce( 'wc-revolut-create-order' ),
 				'create_revolut_pbb_order' => wp_create_nonce( 'wc-revolut-create-pbb-order' ),
 				'process_order'            => wp_create_nonce( 'wc-revolut-process-payment-result' ),
+				'capture_payment'          => wp_create_nonce( 'wc-revolut-capture-payment' ),
+				'pay_with_token'           => wp_create_nonce( 'wc-revolut-pay-with-token' ),
+				'check_payment'            => wp_create_nonce( 'wc-revolut-check-payment' ),
 			),
 			'fast_checkout_params'      => $this->payment_request_gateway->get_wc_revolut_payment_request_params(),
 		);

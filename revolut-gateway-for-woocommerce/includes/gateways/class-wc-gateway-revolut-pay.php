@@ -120,6 +120,7 @@ class WC_Gateway_Revolut_Pay extends WC_Payment_Gateway_Revolut {
 
 		$this->log_error( 'order processing - public_id: ' . $public_id . ' - wc_order_id: ' . $wc_order_id['wc_order_id'] );
 
+		$this->capture_payment( $revolut_order_id );
 		$this->process_payment( $wc_order_id['wc_order_id'], $public_id, false, '', false, true );
 	}
 

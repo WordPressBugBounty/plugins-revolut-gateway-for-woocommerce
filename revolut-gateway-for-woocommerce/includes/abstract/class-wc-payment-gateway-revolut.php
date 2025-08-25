@@ -143,6 +143,7 @@ abstract class WC_Payment_Gateway_Revolut extends WC_Payment_Gateway_CC {
 
 		add_action( 'woocommerce_update_order', array( $this, 'save_shipments_information' ), 10, 1 );
 		add_action( 'wp_enqueue_scripts', array( $this, 'wc_revolut_enqueue_scripts' ) );
+		add_action( 'woocommerce_admin_order_data_after_billing_address', array( $this, 'sync_order_state' ) );
 
 		if ( null === self::$initialised ) {
 			self::$initialised = true;
@@ -152,10 +153,48 @@ abstract class WC_Payment_Gateway_Revolut extends WC_Payment_Gateway_CC {
 	}
 
 	/**
-	 * Fires immediately after updating metadata.
+	 * Sync WooCommerce and Revolut Order states.
 	 *
-	 * @param int $order_id Order Object ID.
+	 * @param WC_Order $wc_order WooCommerce order.
+	 *
+	 * @return void
 	 */
+	public function sync_order_state( $wc_order ) {
+		$revolut_order_id = $wc_order->get_meta( 'revolut_payment_order_id', true );
+
+		if ( empty( $revolut_order_id ) ) {
+			return;
+		}
+
+		if ( $wc_order->is_paid() ) {
+			return;
+		}
+
+		$wc_order_id = (int) $this->get_wc_order_id_by_revolut_order_id( $revolut_order_id );
+
+		if ( $wc_order_id !== $wc_order->get_id() ) {
+			return;
+		}
+
+		if ( ! $this->is_completed_payment( $revolut_order_id ) ) {
+			return;
+		}
+
+		$result = $this->process_captured_order( $revolut_order_id, $wc_order->get_id() );
+
+		if ( ! $result ) {
+			return;
+		}
+
+		// if order status updated reload the page.
+		header('refresh: 0');
+	}
+
+		/**
+		 * Fires immediately after updating metadata.
+		 *
+		 * @param int $order_id Order Object ID.
+		 */
 	public function save_shipments_information( $order_id = 0 ) {
 		try {
 
@@ -528,36 +567,6 @@ abstract class WC_Payment_Gateway_Revolut extends WC_Payment_Gateway_CC {
 	}
 
 	/**
-	 * Send order action request from Woocommerce to API.
-	 *
-	 * @param String            $revolut_order_id Revolut order id.
-	 * @param String            $action Api action.
-	 * @param array|object|null $body Request body.
-	 *
-	 * @return mixed
-	 * @throws Exception Exception.
-	 */
-	public function action_revolut_order( $revolut_order_id, $action, $body = array() ) {
-		if ( empty( $revolut_order_id ) ) {
-			return array();
-		}
-
-		$json = MerchantApi::privateLegacy()->post( "/orders/$revolut_order_id/$action", $body );
-
-		if ( ! empty( $json ) && ! isset( $json['id'] ) && isset( $json['code'] ) ) {
-			if ( ! empty( $json['code'] ) && FAILED_CARD === $json['code'] ) {
-				/* translators: %s: Order Action. */
-				throw new Exception( sprintf( __( 'Customer will not be able to get a %s using this card!', 'revolut-gateway-for-woocommerce' ), $action ) );
-			}
-
-			/* translators:%1s: Order Action. %$2s: Order Action.*/
-			throw new Exception( sprintf( __( 'Cannot %1$s Order - Error Id: %2$s.', 'revolut-gateway-for-woocommerce' ), $action, $json['code'] ) );
-		}
-
-		return $json;
-	}
-
-	/**
 	 * Add public_id field and logo on card form.
 	 *
 	 * @abstract
@@ -613,15 +622,10 @@ abstract class WC_Payment_Gateway_Revolut extends WC_Payment_Gateway_CC {
 	 */
 	public function save_payment_method( $order_id ) {
 		// get revolut customer ID from Revolut order.
-		$revolut_order = null;
-		for ( $i = 0; $i <= 9; $i++ ) {
-			$revolut_order = MerchantApi::privateLegacy()->get( '/orders/' . $order_id );
-			if ( isset( $revolut_order['customer_id'] ) && ! empty( $revolut_order['customer_id'] ) && 'PROCESSING' !== $revolut_order['state'] ) {
-				$revolut_customer_id = $revolut_order['customer_id'];
-				break;
-			}
-			sleep( 2 );
-		}
+		$revolut_order       = MerchantApi::privateLegacy()->get( '/orders/' . $order_id );
+		$revolut_customer_id = $revolut_order['customer_id'];
+
+		RLog::debug( 'save_payment_method - ' . $revolut_order['state'] . ' - customer_id - ' . $revolut_customer_id );
 
 		if ( empty( $revolut_customer_id ) ) {
 			throw new Exception( 'An error occurred while saving the card' );
@@ -781,28 +785,17 @@ abstract class WC_Payment_Gateway_Revolut extends WC_Payment_Gateway_CC {
 				throw new Exception( 'Can not find Revolut order ID' );
 			}
 
-			// check if it needs to process payment with previously saved method.
-			$previously_saved_wc_token = $this->maybe_pay_by_saved_method( $revolut_order_id, $is_using_saved_payment_method, $wc_token_id );
-
 			// payment should be processed until this point, if not throw an error.
 			$this->check_payment_processed( $revolut_order_id );
-			// payment process began...
-			$wc_order->update_status( 'on-hold' );
-			$wc_order->add_order_note( 'Payment has been successfully authorized (Order ID: ' . $revolut_order_id . ').' );
-
-			// maybe capture order
-			$this->maybe_capture_revolut_order( $revolut_order_id, $wc_order );
 
 			// check payment result and update order status.
 			$this->handle_revolut_order_result( $wc_order, $revolut_order_id );
 			// check save method requested.
-			$newly_saved_wc_token = $this->maybe_save_payment_method( $revolut_order_id, $wc_order, $is_using_saved_payment_method, $save_payment_method_requested );
+			$wc_token = $this->maybe_save_payment_method( $revolut_order_id, $save_payment_method_requested );
+
 			// check if there is any saved or used payment token.
-			$wc_token = null;
-			if ( $previously_saved_wc_token ) {
-				$wc_token = $previously_saved_wc_token;
-			} else {
-				$wc_token = $newly_saved_wc_token;
+			if ( $is_using_saved_payment_method ) {
+				$wc_token = $this->get_selected_payment_token( $wc_token_id );
 			}
 
 			$this->save_wc_order_id( $revolut_payment_public_id, $revolut_order_id, $wc_order_id, $wc_order->get_order_number() );
@@ -911,7 +904,6 @@ abstract class WC_Payment_Gateway_Revolut extends WC_Payment_Gateway_CC {
 			$order_message .= ' Order Total: ' . $wc_order_total . strtoupper( $wc_order_currency );
 			$order_message .= ' Paid amount: ' . $revolut_order_total . strtoupper( $revolut_order_currency );
 
-			$wc_order->update_status( 'on-hold' );
 			$wc_order->add_order_note( wp_kses_post( $order_message ) );
 		}
 	}
@@ -1006,104 +998,44 @@ abstract class WC_Payment_Gateway_Revolut extends WC_Payment_Gateway_CC {
 	}
 
 	/**
-	 * Capture revolut order if needed
-	 *
-	 * @param string   $revolut_order_id
-	 * @param WC_Order $wc_order
-	 * @return void
-	 */
-	public function maybe_capture_revolut_order( $revolut_order_id, $wc_order ) {
-
-		if ( $this->id === WC_Gateway_Revolut_Pay_By_Bank::GATEWAY_ID ) {
-			return;
-		}
-
-		$payment_action = $this->api_settings->get_option( 'payment_action' );
-
-		// authorize only mode do nothing
-		if ( $payment_action === 'authorize' ) {
-			return;
-		}
-
-		$revolut_order = MerchantApi::private()->get( "/orders/$revolut_order_id" );
-
-		if ( 'manual' !== $revolut_order['capture_mode'] ) {
-			RLog::error( "Expected order $revolut_order_id to be in manual capture mode" );
-			return;
-		}
-
-		if ( 'authorised' !== $revolut_order['state'] ) {
-			RLog::error( "Expected order $revolut_order_id to be in AUTHORISED state - actual state : " . $revolut_order['state'] );
-			$wc_order->update_meta_data( strtoupper( $revolut_order_id ) . '_webhook_authorised_event_action', 'capture' );
-			$wc_order->save();
-			return;
-		}
-
-		$this->action_revolut_order( $revolut_order_id, 'capture' );
-
-	}
-
-	/**
 	 * Update WooCommerce Order status based on payment result.
 	 *
 	 * @param WC_Order $wc_order WooCommerce order.
 	 * @param string   $revolut_order_id Revolut order id.
+	 * @param bool     $is_subscription_payment indicator for is_subscription payments.
 	 *
 	 * @throws Exception Exception.
 	 */
-	protected function handle_revolut_order_result( $wc_order, $revolut_order_id ) {
-		$wc_order_id = $wc_order->get_id();
-
-		// verify that the order was paid.
-		$mode                  = $this->api_settings->get_option( 'payment_action' );
-		$is_pay_by_bank_method = WC_Gateway_Revolut_Pay_By_Bank::GATEWAY_ID === $this->id;
-
-		for ( $i = 0; $i < WC_REVOLUT_FETCH_API_ORDER_ATTEMPTS; $i++ ) {
-			if ( isset( $revolut_order_id ) && ! empty( $revolut_order_id ) ) {
-				$order           = MerchantApi::privateLegacy()->get( '/orders/' . $revolut_order_id );
-				$wc_order_status = empty( $wc_order->get_status() ) ? '' : $wc_order->get_status();
-				$check_wc_status = 'processing' === $wc_order_status || 'completed' === $wc_order_status;
-				if ( isset( $order['state'] ) && ! $check_wc_status ) {
-					if ( 'COMPLETED' === $order['state'] && 'authorize_and_capture' === $mode ) {
-						$wc_order->update_meta_data( 'revolut_capture', 'yes', $wc_order_id );
-						$wc_order->save();
-						$wc_order->payment_complete( $revolut_order_id );
-						$wc_order->add_order_note( 'Payment has been successfully captured (Order ID: ' . $revolut_order_id . ').' );
-						return true;
-					} elseif ( 'AUTHORISED' === $order['state'] && $is_pay_by_bank_method ) {
-						$wc_order->add_order_note(
-							'Pay by Bank payments can take up to 1 business day to complete. 
-                             If the order is not moved to the "Payment accepted" state after 1 business day, 
-                             merchants should check their Revolut account to verify that this payment was taken, and may need to reach out the customer if it was not.'
-						);
-						return true;
-					} elseif ( 'AUTHORISED' === $order['state'] && ( 'authorize' === $mode ) ) {
-						return true;
-					} elseif ( 'PENDING' === $order['state'] ) {
-						$wc_order->add_order_note( 'Something went wrong while completing this payment. Please reach out to your customer and ask them to try again.' );
-						throw new Exception( 'Something went wrong while completing this payment.' );
-					} elseif ( 9 === $i && ( 'AUTHORISED' === $order['state'] || 'PROCESSING' === $order['state'] || 'IN_SETTLEMENT' === $order['state'] ) ) {
-						if ( 'authorize_and_capture' === $mode ) {
-							$wc_order->add_order_note(
-								'Payment is taking a bit longer than expected to be completed. 
-							                If the order is not moved to the “Processing” state after 24h, please check your Revolut account to verify that this payment was taken. 
-							                You might need to contact your customer if it wasn’t.'
-							);
-						}
-
-						return true;
-					}
-
-					sleep( WC_REVOLUT_WAIT_FOR_ORDER_TIME );
-				} elseif ( $check_wc_status ) {
-					return true;
-				}
-			} else {
-				throw new Exception( 'Revolut order ID is missing' );
-			}
+	protected function handle_revolut_order_result( $wc_order, $revolut_order_id, $is_subscription_payment = false ) {
+		if ( empty( $revolut_order_id ) ) {
+			return;
 		}
 
-		return true;
+		$order = MerchantApi::privateLegacy()->get( '/orders/' . $revolut_order_id );
+
+		if ( 'COMPLETED' === $order['state'] ) {
+			$this->process_captured_order( $revolut_order_id, $wc_order->get_id() );
+			return;
+		}
+
+		if ( 'AUTHORISED' === $order['state'] ) {
+			$this->process_authorised_order( $revolut_order_id, $wc_order->get_id(), $is_subscription_payment );
+			return;
+		}
+
+		if ( $is_subscription_payment ) {
+			// subscription payment result will be captured by webhook call.
+			return;
+		}
+
+		// unexpected order state - technically should be unreachable.
+		$wc_order->update_status( 'pending' );
+		$wc_order->add_order_note(
+			'Unexpected payment status - ’' . $order['state'] . '’.' .
+								' If the order is not moved to the “Processing” state after 24h,' .
+								' please check your Revolut account to verify that this payment was taken.' .
+			' You might need to contact your customer if it wasn’t.'
+		);
 	}
 
 	/**
@@ -1269,52 +1201,17 @@ abstract class WC_Payment_Gateway_Revolut extends WC_Payment_Gateway_CC {
 	}
 
 	/**
-	 * Check is order needs to paid with the saved payment method.
-	 *
-	 * @param string $revolut_order_id Revolut order id.
-	 * @param bool   $is_using_saved_payment_method Indicates payments by payment token.
-	 * @param int    $wc_token_id WooCommerce token id.
-	 */
-	protected function maybe_pay_by_saved_method( $revolut_order_id, $is_using_saved_payment_method, $wc_token_id ) {
-		if ( $is_using_saved_payment_method ) {
-			$wc_token = $this->get_selected_payment_token( $wc_token_id );
-			return $this->pay_by_saved_method( $revolut_order_id, $wc_token );
-		}
-
-		return null;
-	}
-
-	/**
-	 * Charge customer with previously saved payment method.
-	 *
-	 * @param string              $revolut_order_id Revolut order id.
-	 * @param WC_Payment_Token_CC $wc_token WooCommerce payment token.
-	 */
-	protected function pay_by_saved_method( $revolut_order_id, $wc_token ) {
-		$payment_method_id = $wc_token->get_token();
-
-		$body = array(
-			'payment_method_id' => $payment_method_id,
-		);
-
-		$this->action_revolut_order( $revolut_order_id, 'confirm', $body );
-		return $wc_token;
-	}
-
-	/**
 	 * Check if the payment methods should be saved.
 	 *
-	 * @param string   $revolut_order_id Revolut order id.
-	 * @param WC_Order $wc_order WooCommerce order.
-	 * @param bool     $is_using_saved_payment_method Indicates payments by payment token.
-	 * @param bool     $save_payment_method_requested Indicates if payment token should be saved.
+	 * @param string $revolut_order_id Revolut order id.
+	 * @param bool   $save_payment_method_requested Indicates if payment token should be saved.
 	 */
-	protected function maybe_save_payment_method( $revolut_order_id, $wc_order, $is_using_saved_payment_method, $save_payment_method_requested ) {
-		if ( $save_payment_method_requested && ! $is_using_saved_payment_method ) {
+	protected function maybe_save_payment_method( $revolut_order_id, $save_payment_method_requested ) {
+		if ( $save_payment_method_requested ) {
 			try {
 				return $this->save_payment_method( $revolut_order_id );
 			} catch ( Exception $e ) {
-				$wc_order->add_order_note( 'Card save process failed. (Error: ' . $e->getMessage() . ')' );
+				RLog::error( 'Could not save card payment method ' . $revolut_order_id . ' (Error: ' . $e->getMessage() . ')' );
 			}
 		}
 		return null;
@@ -1376,17 +1273,6 @@ abstract class WC_Payment_Gateway_Revolut extends WC_Payment_Gateway_CC {
 	 */
 	public function handle_add_payment_method( $current_subscription, $wc_token, $wc_customer_id, $update_all_subscriptions_payment_method ) {
 		return false;
-	}
-
-	/**
-	 * Grab selected payment token from Request
-	 *
-	 * @abstract
-	 * @param int $wc_token_id WooCommerce token id.
-	 * @return String
-	 */
-	public function get_selected_payment_token( $wc_token_id ) {
-		return '';
 	}
 
 	/**
@@ -1459,12 +1345,9 @@ abstract class WC_Payment_Gateway_Revolut extends WC_Payment_Gateway_CC {
 				$this->action_revolut_order( $revolut_order_id, 'capture' );
 				$order_response = MerchantApi::privateLegacy()->get( '/orders/' . $revolut_order_id );
 
-				if ( 'COMPLETED' === $order_response['state'] || 'IN_SETTLEMENT' === $order_response['state'] ) {
-					$wc_order->payment_complete( $revolut_order_id );
-					$wc_order->add_order_note( __( 'Payment amount has been captured successfully.', 'revolut-gateway-for-woocommerce' ) );
-					$wc_order->update_meta_data( 'revolut_capture', 'yes', $order_id );
-					$wc_order->save();
-				} else {
+				$this->process_captured_order( $revolut_order_id, $order_id );
+
+				if ( 'COMPLETED' !== $order_response['state'] && 'IN_SETTLEMENT' !== $order_response['state'] ) {
 					$wc_order->add_order_note( __( 'Order capture wasn\'t successful. Please try again or check your Revolut Business web portal for more information', 'revolut-gateway-for-woocommerce' ) );
 				}
 			}
@@ -1652,7 +1535,7 @@ abstract class WC_Payment_Gateway_Revolut extends WC_Payment_Gateway_CC {
 				'billing_phone' => $context->order->get_billing_phone(),
 				'billing_email' => $context->order->get_billing_email(),
 			);
-			$is_pay_by_bank                = $context->payment_method === WC_Gateway_Revolut_Pay_By_Bank::GATEWAY_ID;
+			$is_pay_by_bank                = WC_Gateway_Revolut_Pay_By_Bank::GATEWAY_ID === $context->payment_method;
 			$is_express_checkout           = isset( $context->payment_data['is_express_checkout'] ) ? $context->payment_data['is_express_checkout'] : false;
 			$wc_payment_token_id           = isset( $context->payment_data['wc-revolut_cc-payment-token'] ) ? $context->payment_data['wc-revolut_cc-payment-token'] : null;
 			$is_using_saved_payment_method = ! empty( $wc_payment_token_id );
@@ -1682,18 +1565,6 @@ abstract class WC_Payment_Gateway_Revolut extends WC_Payment_Gateway_CC {
 			if ( ! isset( $checkout_result['result'] ) || 'revolut_wc_order_created' !== $checkout_result['result'] ) {
 				$result->set_status( 'failure' );
 				return;
-			}
-
-			if ( $is_using_saved_payment_method && $wc_payment_token_id && WC_Gateway_Revolut_CC::GATEWAY_ID === $context->payment_method ) {
-
-				return $this->process_blocks_payment(
-					$result,
-					$wc_order_id,
-					$revolut_public_id,
-					false,
-					true,
-					$wc_payment_token_id
-				);
 			}
 
 			if ( $is_express_checkout ) {
@@ -1850,11 +1721,14 @@ abstract class WC_Payment_Gateway_Revolut extends WC_Payment_Gateway_CC {
 				'promotion_banner_html'     => $this->get_confirmation_page_promotional_banners(),
 				'informational_banner_data' => $this->get_informational_banner_data(),
 				'nonce'                     => array(
-					'create_revolut_pbb_order' => wp_create_nonce( 'wc-revolut-create-pbb-order' ),
-					'process_payment_result'   => wp_create_nonce( 'wc-revolut-process-payment-result' ),
-					'billing_info'             => wp_create_nonce( 'wc-revolut-get-billing-info' ),
-					'customer_info'            => wp_create_nonce( 'wc-revolut-get-customer-info' ),
-					'get_order_public_id'      => wp_create_nonce( 'wc-revolut-get-order-public-id' ),
+					'create_revolut_pbb_order'   => wp_create_nonce( 'wc-revolut-create-pbb-order' ),
+					'process_payment_result'     => wp_create_nonce( 'wc-revolut-process-payment-result' ),
+					'billing_info'               => wp_create_nonce( 'wc-revolut-get-billing-info' ),
+					'customer_info'              => wp_create_nonce( 'wc-revolut-get-customer-info' ),
+					'get_order_public_id'        => wp_create_nonce( 'wc-revolut-get-order-public-id' ),
+					'wc_revolut_capture_payment' => wp_create_nonce( 'wc-revolut-capture-payment' ),
+					'wc_revolut_pay_with_token'  => wp_create_nonce( 'wc-revolut-pay-with-token' ),
+					'wc_revolut_check_payment'   => wp_create_nonce( 'wc-revolut-check-payment' ),
 				),
 			)
 		);
@@ -1888,8 +1762,10 @@ abstract class WC_Payment_Gateway_Revolut extends WC_Payment_Gateway_CC {
 	}
 
 	/**
-	 * @param string $revolut_order_id
-	 * @param string $revolut_customer_id
+	 * Attach Revolut customer to subscription.
+	 *
+	 * @param string $revolut_order_id revolut order id.
+	 * @param string $revolut_customer_id revolut customer id.
 	 * @return void
 	 */
 	public function maybe_attach_revolut_customer_to_subscription_order_with_guest_user( $revolut_order_id, $revolut_customer_id ) {

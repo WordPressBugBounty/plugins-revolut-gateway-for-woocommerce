@@ -6,6 +6,9 @@ jQuery(function ($) {
     RevolutPaymentRequest: 'revolut_payment_request', // Apple Pay / Google Pay
   }
 
+  const POLLING_TIMEOUT = 3000
+  const MAX_POLLING_COUNT = 10
+
   const CARD_WIDGET_TYPES = {
     CardField: 'card_field',
     Popup: 'popup',
@@ -313,7 +316,7 @@ jQuery(function ($) {
   /**
    * Check if we should use the saved Payment Method
    */
-  function payWithPaymentToken() {
+  function isPaymentTokenSelected() {
     return (
       $('#wc-revolut_cc-payment-token-new:checked').length < 1 &&
       $('[id^="wc-revolut_cc-payment-token"]:checked').length > 0
@@ -321,9 +324,130 @@ jQuery(function ($) {
   }
 
   /**
+   * Pay with saved payment token
+   */
+  function payWithPaymentToken(
+    publicId,
+    paymentToken,
+    { totalRetry = 3, delay = 300 } = {},
+  ) {
+    return new Promise((resolve, reject) => {
+      const tryToPay = retryCount => {
+        $.ajax({
+          type: 'POST',
+          url: getAjaxURL('pay_with_token'),
+          data: {
+            revolut_public_id: publicId,
+            payment_token: paymentToken,
+            security: wc_revolut.nonce.wc_revolut_pay_with_token,
+          },
+          success: function (response) {
+            if (response && response.success) {
+              resolve()
+            } else {
+              retryOrFail(new Error('failed to pay with saved method'), retryCount)
+            }
+          },
+          error: function (jqXHR, textStatus, errorThrown) {
+            retryOrFail(new Error('failed to pay with saved method'), retryCount)
+          },
+        })
+      }
+
+      const retryOrFail = (error, retryCount) => {
+        if (retryCount > 0) {
+          setTimeout(() => tryToPay(retryCount - 1), delay)
+        } else {
+          stopProcessing()
+          displayWooCommerceError(
+            `<div class="woocommerce-error">${error.message}</div>`,
+          ),
+            reject()
+        }
+      }
+
+      tryToPay(totalRetry)
+    })
+  }
+
+  function pollPaymentResult(publicId, hasError, captured = true) {
+    return new Promise((resolve, reject) => {
+      if (hasError) {
+        return resolve()
+      }
+
+      let pollingCount = 0
+
+      const interval = setInterval(() => {
+        if (pollingCount > MAX_POLLING_COUNT) {
+          clearInterval(interval)
+          resolve()
+        }
+
+        $.ajax({
+          type: 'POST',
+          url: getAjaxURL('check_payment'),
+          data: {
+            revolut_public_id: publicId,
+            is_captured: captured ? 1 : 0,
+            security: wc_revolut.nonce.wc_revolut_check_payment,
+          },
+
+          success: function (response) {
+            if (response && response.payment_completed) {
+              clearInterval(interval)
+              resolve()
+            }
+            pollingCount++
+          },
+        })
+      }, POLLING_TIMEOUT)
+    })
+  }
+
+  function capturePayment(publicId, hasError, { totalRetry = 3, delay = 300 } = {}) {
+    return new Promise((resolve, reject) => {
+      if (hasError) {
+        return resolve()
+      }
+
+      const tryToCapturePayment = retryCount => {
+        $.ajax({
+          type: 'POST',
+          url: getAjaxURL('capture_payment'),
+          data: {
+            revolut_public_id: publicId,
+            security: wc_revolut.nonce.wc_revolut_capture_payment,
+          },
+          success: function (response) {
+            if (response && response.is_captured) {
+              resolve()
+            } else {
+              retryOrFail(new Error('failed to capture payment'), retryCount)
+            }
+          },
+          error: function (jqXHR, textStatus, errorThrown) {
+            retryOrFail(new Error('failed to capture payment'), retryCount)
+          },
+        })
+      }
+
+      const retryOrFail = (error, retryCount) => {
+        if (retryCount > 0) {
+          setTimeout(() => tryToCapturePayment(retryCount - 1), delay)
+        } else {
+          reject(error)
+        }
+      }
+
+      tryToCapturePayment(totalRetry)
+    })
+  }
+
+  /**
    * Handle if success
    */
-  function handlePaymentResult(errorMessage = '', publicId = null) {
+  function handlePaymentResult(errorMessage = '') {
     const currentPaymentMethod = getPaymentMethod()
     const savePaymentMethod = shouldSavePaymentMethod()
     const payment_token = $('input[name="wc-revolut_cc-payment-token"]:checked').val()
@@ -338,45 +462,58 @@ jQuery(function ($) {
       startProcessing()
     }
 
-    if (isPaymentMethodSaveView()) {
-      return handlePaymentMethodSaveFrom(currentPaymentMethod)
+    if (isPaymentMethodSaveView() || isPaymentMethodChangeView()) {
+      return pollPaymentResult(currentPaymentMethod.publicId, '', false).then(() =>
+        handlePaymentMethodSaveFrom(currentPaymentMethod),
+      )
     }
 
     let data = {}
     data['revolut_gateway'] = currentPaymentMethod.methodId
     data['security'] = wc_revolut.nonce.process_payment_result
-    data['revolut_public_id'] = publicId ?? currentPaymentMethod.publicId
+    data['revolut_public_id'] = currentPaymentMethod.publicId
     data['revolut_payment_error'] = errorMessage
     data['wc_order_id'] = wc_order_id
     data['reload_checkout'] = reload_checkout
     data['revolut_save_payment_method'] = isCardPaymentSelected ? savePaymentMethod : 0
     data['wc-revolut_cc-payment-token'] = isCardPaymentSelected ? payment_token : ''
 
-    $.ajax({
-      type: 'POST',
-      dataType: 'json',
-      url: getAjaxURL('process_payment_result'),
-      data: data,
-      success: processPaymentResultSuccess,
-      error: function (jqXHR, textStatus, errorThrown) {
-        if (jqXHR && jqXHR.responseText) {
-          let response = jqXHR.responseText.match(/{(.*?)}/)
-          if (response && response.length > 0) {
-            try {
-              response = JSON.parse(response[0])
-              if (response.result && response.redirect) {
-                return processPaymentResultSuccess(response)
-              }
-            } catch (e) {
-              // swallow error and handle in generic block below
-            }
-          }
-        }
-
+    capturePayment(currentPaymentMethod.publicId, errorMessage)
+      .catch(error => {
         stopProcessing()
-        displayWooCommerceError(`<div class="woocommerce-error">${errorThrown}</div>`)
-      },
-    })
+        displayWooCommerceError(`<div class="woocommerce-error">${error.message}</div>`)
+      })
+      .then(() =>
+        pollPaymentResult(currentPaymentMethod.publicId, errorMessage).then(() => {
+          $.ajax({
+            type: 'POST',
+            dataType: 'json',
+            url: getAjaxURL('process_payment_result'),
+            data: data,
+            success: processPaymentResultSuccess,
+            error: function (jqXHR, textStatus, errorThrown) {
+              if (jqXHR && jqXHR.responseText) {
+                let response = jqXHR.responseText.match(/{(.*?)}/)
+                if (response && response.length > 0) {
+                  try {
+                    response = JSON.parse(response[0])
+                    if (response.result && response.redirect) {
+                      return processPaymentResultSuccess(response)
+                    }
+                  } catch (e) {
+                    // swallow error and handle in generic block below
+                  }
+                }
+              }
+
+              stopProcessing()
+              displayWooCommerceError(
+                `<div class="woocommerce-error">${errorThrown}</div>`,
+              )
+            },
+          })
+        }),
+      )
   }
 
   function processPaymentResultSuccess(result) {
@@ -859,7 +996,7 @@ jQuery(function ($) {
     const currentPaymentMethod = getPaymentMethod()
 
     if (
-      !payWithPaymentToken() &&
+      !isPaymentTokenSelected() &&
       cardStatus != null &&
       !cardStatus.completed &&
       currentPaymentMethod.widgetType != CARD_WIDGET_TYPES.Popup
@@ -872,8 +1009,19 @@ jQuery(function ($) {
 
     submitWooCommerceOrder().then(function (valid) {
       if (valid) {
-        if (payWithPaymentToken()) {
-          handlePaymentResult()
+        if (isPaymentTokenSelected()) {
+          const payment_token = $(
+            'input[name="wc-revolut_cc-payment-token"]:checked',
+          ).val()
+
+          const currentPaymentMethod = getPaymentMethod()
+
+          payWithPaymentToken(currentPaymentMethod.publicId, payment_token).then(() =>
+            pollPaymentResult(currentPaymentMethod.publicId, '', false).then(() =>
+              handlePaymentResult(),
+            ),
+          )
+
           return false
         }
 
@@ -976,6 +1124,7 @@ jQuery(function ($) {
     resolve(false)
     displayWooCommerceError('<div class="woocommerce-error">Invalid response</div>')
   }
+
   if (
     $body.hasClass('woocommerce-order-pay') ||
     $body.hasClass('woocommerce-add-payment-method')
@@ -994,11 +1143,21 @@ jQuery(function ($) {
     validateOrderPayForm().then(function (valid) {
       if (valid) {
         startProcessing()
-        if (payWithPaymentToken()) {
-          return handlePaymentResult()
-        }
 
         const currentPaymentMethod = getPaymentMethod()
+
+        if (isPaymentTokenSelected()) {
+          const payment_token = $(
+            'input[name="wc-revolut_cc-payment-token"]:checked',
+          ).val()
+
+          return payWithPaymentToken(currentPaymentMethod.publicId, payment_token).then(
+            () =>
+              pollPaymentResult(currentPaymentMethod.publicId, '', false).then(() =>
+                handlePaymentResult(),
+              ),
+          )
+        }
 
         if (currentPaymentMethod.methodId === PAYMENT_METHOD.RevolutPayByBank) {
           initPayByBankWidget()
@@ -1018,35 +1177,29 @@ jQuery(function ($) {
   /**
    * Submit card on Payment method save
    */
-  function submitPaymentMethodSave() {
+  function handleChangePaymentMethodPage(e) {
     if (!isRevolutCardPaymentOptionSelected()) {
       return true
     }
 
-    if (payWithPaymentToken()) {
-      return handlePaymentResult()
+    if (isPaymentTokenSelected()) {
+      const currentPaymentMethod = getPaymentMethod()
+      return handlePaymentMethodSaveFrom(currentPaymentMethod)
     }
 
-    getCustomerBaseInfo().then(function (billing_info) {
-      if (isPaymentMethodSaveView()) {
-        if (
-          getPaymentMethod().widgetType == CARD_WIDGET_TYPES.Popup ||
-          $('#wc-revolut-change-payment-method').length
-        ) {
-          return showCardPopupWidget(billing_info)
-        }
+    e.preventDefault()
 
-        instance.submit(billing_info)
-      }
+    getBillingInfo().then(function (billing_info) {
+      return showCardPopupWidget(billing_info)
     })
   }
 
+  function isPaymentMethodChangeView() {
+    return $('#wc-revolut-change-payment-method').length > 0
+  }
+
   function isPaymentMethodSaveView() {
-    return (
-      $('#wc-revolut-change-payment-method').length > 0 ||
-      $payment_save.length ||
-      $body.hasClass('woocommerce-add-payment-method')
-    )
+    return $payment_save.length || $body.hasClass('woocommerce-add-payment-method')
   }
 
   /**
@@ -1331,26 +1484,31 @@ jQuery(function ($) {
   $form.on('checkout_place_order_revolut_pay_by_bank', handlePayByBankSubmit)
 
   $order_review.on('submit', function (e) {
-    if (isRevolutPaymentMethodSelected() && $('.revolut_public_id').length === 0) {
-      e.preventDefault()
-      let isChangePaymentMethodPage = $('#wc-revolut-change-payment-method').length > 0
-
-      if (isChangePaymentMethodPage) {
-        submitPaymentMethodSave()
-      } else {
-        submitOrderPay()
-      }
+    if (!isRevolutPaymentMethodSelected() || $('.revolut_public_id').length !== 0) {
+      return
     }
+
+    e.preventDefault()
+
+    if (isPaymentMethodChangeView()) {
+      return handleChangePaymentMethodPage(e)
+    }
+
+    submitOrderPay()
   })
 
   $payment_save.on('submit', function (e) {
-    if (isRevolutPaymentMethodSelected()) {
-      if ($('.revolut_public_id').length === 0) {
-        e.preventDefault()
-        submitPaymentMethodSave()
-      }
+    if (!isRevolutPaymentMethodSelected() || $('.revolut_public_id').length !== 0) {
+      return
     }
+
+    e.preventDefault()
+
+    getCustomerBaseInfo().then(function (billing_info) {
+      instance.submit(billing_info)
+    })
   })
+
   if (wc_revolut.page === 'order_pay') {
     $(document.body).trigger('wc-credit-card-form-init')
   }
@@ -1401,7 +1559,7 @@ jQuery(function ($) {
 
   const mountCardGatewayBanner = () => {
     const target = document.getElementById('revolut-upsell-banner')
-    if (!target || isPaymentMethodSaveView()) return
+    if (!target || isPaymentMethodSaveView() || isPaymentMethodChangeView()) return
 
     const { orderToken } = target.dataset
 
