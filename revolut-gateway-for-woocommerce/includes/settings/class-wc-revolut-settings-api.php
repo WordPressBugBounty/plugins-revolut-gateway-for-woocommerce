@@ -50,14 +50,14 @@ class WC_Revolut_Settings_API extends WC_Settings_API {
 	 *
 	 * @var string
 	 */
-	public $connect_server_url_dev = 'https://checkout.revolut.codes/api/connect';
+	public $connect_server_url_dev = 'https://checkout.revolut.codes';
 
 	/**
 	 * Prod Connect server url
 	 *
 	 * @var string
 	 */
-	public $connect_server_url_live = 'https://checkout.revolut.com/api/connect';
+	public $connect_server_url_live = 'https://checkout.revolut.com';
 
 	/**
 	 * Webhook endpoint path
