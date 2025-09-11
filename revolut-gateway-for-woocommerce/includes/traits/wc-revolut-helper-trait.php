@@ -1280,14 +1280,7 @@ trait WC_Gateway_Revolut_Helper_Trait {
 	 */
 	public function get_available_payment_methods( $amount, $currency ) {
 		try {
-			$available_payment_methods = get_option( "revolut_{$this->config_provider->getConfig()->getMode()}_{$currency}_available_payment_methods" );
-
-			if ( ! $available_payment_methods ) {
-				$available_payment_methods = $this->fetch_available_payment_methods_and_brand_logos( $amount, $currency )['payment_methods'];
-			}
-
-			return $available_payment_methods;
-
+			return ServiceProvider::merchantDetailsService()->getAvailablePaymentMethods( $amount, $currency );
 		} catch ( Exception $e ) {
 			$this->log_error( 'get_available_payment_methods: ' . $e->getMessage() );
 			return array();

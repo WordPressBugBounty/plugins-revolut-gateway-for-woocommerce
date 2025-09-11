@@ -187,7 +187,7 @@ abstract class WC_Payment_Gateway_Revolut extends WC_Payment_Gateway_CC {
 		}
 
 		// if order status updated reload the page.
-		header('refresh: 0');
+		header( 'refresh: 0' );
 	}
 
 		/**

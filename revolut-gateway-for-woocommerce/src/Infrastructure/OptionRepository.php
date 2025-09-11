@@ -119,4 +119,12 @@ class OptionRepository implements OptionRepositoryInterface
         );
         return $count > 0;
     }
+
+    public function addCached($key, $value, $ttlSeconds): bool {
+        return set_transient($key, $value, $ttlSeconds);
+    }
+
+    public function getCached($key) {
+        return get_transient($key);
+    }
 }

@@ -2,6 +2,7 @@
 
 namespace Revolut\Plugin\Infrastructure\Api\MerchantDetails;
 
+use Revolut\Plugin\Infrastructure\Api\MerchantApi;
 use Revolut\Plugin\Infrastructure\Api\MerchantApiClientInterface;
 
 class MerchantDetailsApi implements MerchantDetailsApiInterface
@@ -35,8 +36,9 @@ class MerchantDetailsApi implements MerchantDetailsApiInterface
         return isset($details['features']) ? $details['features'] : [];
     }
 
-    public function hasFeature(string $feature): bool
+    public function getPublicKey(): string
     {
-        return in_array($feature, $this->getFeatures());
+        $response = MerchantApi::private()->get('public-key/latest');
+        return $response["public_key"] ?? "";
     }
 }

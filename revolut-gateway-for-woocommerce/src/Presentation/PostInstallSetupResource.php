@@ -7,20 +7,25 @@ use Revolut\Plugin\Services\Http\HttpResourceInterface;
 use Revolut\Plugin\Services\Webhooks\WebhooksEvents;
 use Revolut\Plugin\Services\Webhooks\WebhooksInterface;
 use Revolut\Plugin\Presentation\PostInstallSetupResourceInterface;
-use Revolut\Plugin\Services\Config\Store\StoreDetailsInterface;
+use Revolut\Plugin\Services\Config\Store\StoreDetailsServiceInterface;
+use Revolut\Plugin\Services\Config\Merchant\MerchantDetailsServiceInterface;
 
 class PostInstallSetupResource implements PostInstallSetupResourceInterface, HttpResourceInterface
 {
-    private $storeDetails;
+    private $storeDetailsService;
     private $applePayOnboardingService;
     private $webhooksService;
+    private $merchantDetailsService;
+
     function __construct(
-        StoreDetailsInterface $storeDetails,
+        StoreDetailsServiceInterface $storeDetailsService,
+        MerchantDetailsServiceInterface $merchantDetailsService,
         ApplePayOnboardingService $applePayOnboardingService,
         WebhooksInterface $webhooksService
         )
     {   
-        $this->storeDetails = $storeDetails;
+        $this->merchantDetailsService = $merchantDetailsService;
+        $this->storeDetailsService = $storeDetailsService;
         $this->applePayOnboardingService = $applePayOnboardingService;
         $this->webhooksService = $webhooksService;
     }
@@ -36,13 +41,13 @@ class PostInstallSetupResource implements PostInstallSetupResourceInterface, Htt
             WebhooksEvents::ORDER_COMPLETED_EVENT
         ];
 
-        $webhookUrl = $this->storeDetails->getStoreWebhookEndpoint();
+        $webhookUrl = $this->storeDetailsService->getStoreWebhookEndpoint();
 
        return $this->webhooksService->registerWebhook($webhookUrl, $events);
     }
 
     private function applePayOnboardingSetup() {
-        $domain = $this->storeDetails->getStoreDomain();
+        $domain = $this->storeDetailsService->getStoreDomain();
         return $this->applePayOnboardingService->onBoardDomain($domain);
     }
 
@@ -50,5 +55,7 @@ class PostInstallSetupResource implements PostInstallSetupResourceInterface, Htt
         check_ajax_referer('wc-revolut-post-install-setup-nonce');
         $this->webhookOnboardingSetup();
         $this->applePayOnboardingSetup();
+        $this->merchantDetailsService->setupMerchantPublicKey();
+
     }
 }
