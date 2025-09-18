@@ -144,11 +144,47 @@ abstract class WC_Payment_Gateway_Revolut extends WC_Payment_Gateway_CC {
 		add_action( 'woocommerce_update_order', array( $this, 'save_shipments_information' ), 10, 1 );
 		add_action( 'wp_enqueue_scripts', array( $this, 'wc_revolut_enqueue_scripts' ) );
 		add_action( 'woocommerce_admin_order_data_after_billing_address', array( $this, 'sync_order_state' ) );
+		add_action( 'wp', array( $this, 'check_revolut_payment_result' ) );
 
 		if ( null === self::$initialised ) {
 			self::$initialised = true;
 			add_action( 'added_option', array( $this, 'plugin_options_updated' ), 10, 1 );
 			add_action( 'updated_option', array( $this, 'plugin_options_updated' ), 10, 1 );
+		}
+	}
+
+	/**
+	 * Check Payment Results on checkout page on page reload event.
+	 *
+	 * @return void
+	 */
+	public function check_revolut_payment_result() {
+		static $did_run_check_revolut_payment_result = false;
+
+		if ( $did_run_check_revolut_payment_result ) {
+			return;
+		}
+
+		$did_run_check_revolut_payment_result = true;
+
+		if ( ! is_checkout() ) {
+			return;
+		}
+
+		if ( (bool) get_query_var( 'pay_for_order' ) && ! empty( get_query_var( 'key' ) ) ) {
+			$return_url = $this->check_existing_order_pay_page_order_already_processed();
+
+			if ( $return_url && wp_safe_redirect( $return_url ) ) {
+				exit;
+			}
+
+			return;
+		}
+
+		$return_url = $this->check_existing_checkout_order_already_processed();
+
+		if ( $return_url && wp_safe_redirect( $return_url ) ) {
+			exit;
 		}
 	}
 
@@ -771,18 +807,22 @@ abstract class WC_Payment_Gateway_Revolut extends WC_Payment_Gateway_CC {
 				throw new Exception( 'Missing revolut_public_id parameter' );
 			}
 
-			if ( empty( $revolut_payment_error ) ) {
-				$revolut_payment_error = get_query_var( '_rp_fr' );
-			}
-
-			if ( ! empty( $revolut_payment_error ) ) {
-				throw new Exception( $revolut_payment_error, $this->user_friendly_error_message_code );
-			}
-
 			// resolve revolut_public_id into revolut_order_id.
 			$revolut_order_id = $this->get_revolut_order_by_public_id( $revolut_payment_public_id );
 			if ( empty( $revolut_order_id ) ) {
 				throw new Exception( 'Can not find Revolut order ID' );
+			}
+
+			if ( empty( $revolut_payment_error ) ) {
+				$revolut_payment_error = get_query_var( '_rp_fr' );
+			}
+
+			if ( ! empty( $revolut_payment_error ) && ! $this->is_authorised_or_completed_payment( $revolut_order_id ) ) {
+				throw new Exception( $revolut_payment_error, $this->user_friendly_error_message_code );
+			}
+
+			if ( $is_express_checkout ) {
+				$this->capture_payment( $revolut_order_id );
 			}
 
 			// payment should be processed until this point, if not throw an error.
@@ -790,6 +830,7 @@ abstract class WC_Payment_Gateway_Revolut extends WC_Payment_Gateway_CC {
 
 			// check payment result and update order status.
 			$this->handle_revolut_order_result( $wc_order, $revolut_order_id );
+
 			// check save method requested.
 			$wc_token = $this->maybe_save_payment_method( $revolut_order_id, $save_payment_method_requested );
 
@@ -867,44 +908,6 @@ abstract class WC_Payment_Gateway_Revolut extends WC_Payment_Gateway_CC {
 			$wc_order->save();
 		} catch ( Exception $e ) {
 			$this->log_error( $e->getMessage() );
-		}
-	}
-
-	/**
-	 * Verify is paid amount and order total are equal
-	 *
-	 * @param string   $revolut_order_id Revolut order id.
-	 * @param WC_Order $wc_order WooCommerce order.
-	 *
-	 * @throws Exception Exception.
-	 */
-	protected function verify_order_total( $revolut_order_id, $wc_order ) {
-		$revolut_order          = MerchantApi::privateLegacy()->get( '/orders/' . $revolut_order_id );
-		$revolut_order_total    = $this->get_revolut_order_amount( $revolut_order );
-		$revolut_order_currency = $this->get_revolut_order_currency( $revolut_order );
-
-		if ( empty( $revolut_order_total ) || empty( $revolut_order_currency ) ) {
-			/* translators: %s: Revolut order id. */
-			$wc_order->add_order_note( sprintf( __( 'Can\'t retrieve payment amount for this order. Please check your Revolut Business account (Order ID: %s)', 'revolut-gateway-for-woocommerce' ), $revolut_order_id ) );
-			return;
-		}
-
-		$wc_order_currency = $wc_order->get_currency();
-		$wc_order_total    = $this->get_revolut_order_total( $wc_order->get_total(), $wc_order_currency );
-
-		if ( $wc_order_total !== $revolut_order_total || strtolower( $revolut_order_currency ) !== strtolower( $wc_order_currency ) ) {
-			if ( abs( $wc_order_total - $revolut_order_total ) < 50 ) {
-				return;
-			}
-
-			$wc_order_total      = $this->get_wc_order_total( $wc_order_total, $wc_order_currency );
-			$revolut_order_total = $this->get_wc_order_total( $revolut_order_total, $revolut_order_currency );
-
-			$order_message  = '<b>Difference detected between order and payment total.</b> Please verify order with the customer. (Order ID: ' . $revolut_order_id . ').';
-			$order_message .= ' Order Total: ' . $wc_order_total . strtoupper( $wc_order_currency );
-			$order_message .= ' Paid amount: ' . $revolut_order_total . strtoupper( $revolut_order_currency );
-
-			$wc_order->add_order_note( wp_kses_post( $order_message ) );
 		}
 	}
 
@@ -1721,14 +1724,15 @@ abstract class WC_Payment_Gateway_Revolut extends WC_Payment_Gateway_CC {
 				'promotion_banner_html'     => $this->get_confirmation_page_promotional_banners(),
 				'informational_banner_data' => $this->get_informational_banner_data(),
 				'nonce'                     => array(
-					'create_revolut_pbb_order'   => wp_create_nonce( 'wc-revolut-create-pbb-order' ),
-					'process_payment_result'     => wp_create_nonce( 'wc-revolut-process-payment-result' ),
-					'billing_info'               => wp_create_nonce( 'wc-revolut-get-billing-info' ),
-					'customer_info'              => wp_create_nonce( 'wc-revolut-get-customer-info' ),
-					'get_order_public_id'        => wp_create_nonce( 'wc-revolut-get-order-public-id' ),
-					'wc_revolut_capture_payment' => wp_create_nonce( 'wc-revolut-capture-payment' ),
-					'wc_revolut_pay_with_token'  => wp_create_nonce( 'wc-revolut-pay-with-token' ),
-					'wc_revolut_check_payment'   => wp_create_nonce( 'wc-revolut-check-payment' ),
+					'create_revolut_pbb_order'      => wp_create_nonce( 'wc-revolut-create-pbb-order' ),
+					'process_payment_result'        => wp_create_nonce( 'wc-revolut-process-payment-result' ),
+					'billing_info'                  => wp_create_nonce( 'wc-revolut-get-billing-info' ),
+					'customer_info'                 => wp_create_nonce( 'wc-revolut-get-customer-info' ),
+					'get_order_public_id'           => wp_create_nonce( 'wc-revolut-get-order-public-id' ),
+					'wc_revolut_capture_payment'    => wp_create_nonce( 'wc-revolut-capture-payment' ),
+					'check_order_already_processed' => wp_create_nonce( 'wc-revolut-check-order-already-processed' ),
+					'wc_revolut_pay_with_token'     => wp_create_nonce( 'wc-revolut-pay-with-token' ),
+					'wc_revolut_check_payment'      => wp_create_nonce( 'wc-revolut-check-payment' ),
 				),
 			)
 		);

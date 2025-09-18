@@ -46,6 +46,7 @@ class WC_Revolut_Payment_Ajax_Controller {
 		add_action( 'wc_ajax_wc_revolut_get_customer_info', array( $this, 'wc_revolut_get_customer_info' ) );
 		add_action( 'wc_ajax_wc_revolut_check_payment', array( $this, 'wc_revolut_check_payment' ) );
 		add_action( 'wc_ajax_wc_revolut_capture_payment', array( $this, 'wc_revolut_capture_payment' ) );
+		add_action( 'wc_ajax_wc_revolut_check_order_already_processed', array( $this, 'wc_revolut_check_order_already_processed' ) );
 		add_action( 'wc_ajax_wc_revolut_pay_with_token', array( $this, 'wc_revolut_pay_with_token' ) );
 		add_action( 'wc_ajax_wc_revolut_process_payment_result', array( $this, 'wc_revolut_process_payment_result' ) );
 		add_action( 'wc_ajax_revolut_payment_request_cancel_order', array( $this, 'revolut_payment_request_ajax_cancel_order' ) );
@@ -412,6 +413,23 @@ class WC_Revolut_Payment_Ajax_Controller {
 				'is_captured' => $is_captured,
 			)
 		);
+	}
+
+	/**
+	 * Check is order processed
+	 */
+	public function wc_revolut_check_order_already_processed() {
+		check_ajax_referer( 'wc-revolut-check-order-already-processed', 'security' );
+
+		$revolut_public_id = isset( $_POST['revolut_public_id'] ) ? wc_clean( wp_unslash( $_POST['revolut_public_id'] ) ) : '';
+		$redirect_url      = $this->check_existing_checkout_order_already_processed( $revolut_public_id );
+
+		wp_send_json(
+			array(
+				'order_already_processed' => ! empty( $redirect_url ),
+				'redirect_url'            => $redirect_url,
+			)
+		);
 
 	}
 
@@ -463,7 +481,7 @@ class WC_Revolut_Payment_Ajax_Controller {
 			$payment_action = ServiceProvider::apiConfigProvider()->getConfigValue( 'payment_action' );
 
 			$payment_completed = $is_captured && 'authorize' !== $payment_action ? $this->is_completed_payment( $revolut_order_id )
-				: $this->is_authorised_payment( $revolut_order_id );
+				: $this->is_authorised_or_completed_payment( $revolut_order_id );
 		}
 
 		wp_send_json(

@@ -311,34 +311,28 @@ jQuery(function ($) {
     data['revolut_save_payment_method'] = 0
     data['wc-revolut_cc-payment-token'] = ''
 
-    capturePayment(wc_revolut_payment_request_params.revolut_public_id, errorMessage)
-      .catch(error => {
-        stopProcessing()
-        displayErrorMessage(`<div class="woocommerce-error">${error.message}</div>`)
-      })
-      .then(() =>
-        pollPaymentResult(
-          wc_revolut_payment_request_params.revolut_public_id,
-          errorMessage,
-        ).then(() => {
-          sendRequest(getAjaxURL('process_payment_result', 'wc_revolut_'), data).then(
-            response => {
-              if (response.result === 'success') {
-                window.location.href = response.redirect
-                return
-              }
-              $.unblockUI()
-              $('.blockUI.blockOverlay').hide()
+    pollPaymentResult(
+      wc_revolut_payment_request_params.revolut_public_id,
+      errorMessage,
+      false,
+    ).then(() => {
+      sendRequest(getAjaxURL('process_payment_result', 'wc_revolut_'), data).then(
+        response => {
+          if (response.result === 'success') {
+            window.location.href = response.redirect
+            return
+          }
+          $.unblockUI()
+          $('.blockUI.blockOverlay').hide()
 
-              if (!response.messages || typeof response.messages == 'undefined') {
-                response.messages = `<div class="woocommerce-error">${wc_revolut_payment_request_params.error_messages.checkout_general}</div>`
-              }
+          if (!response.messages || typeof response.messages == 'undefined') {
+            response.messages = `<div class="woocommerce-error">${wc_revolut_payment_request_params.error_messages.checkout_general}</div>`
+          }
 
-              cancelOrder(response.messages)
-            },
-          )
-        }),
+          cancelOrder(response.messages)
+        },
       )
+    })
   }
 
   function submitWooCommerceOrder(payment_method = 'revolut_payment_request') {

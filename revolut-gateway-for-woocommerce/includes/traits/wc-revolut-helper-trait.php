@@ -156,6 +156,198 @@ trait WC_Gateway_Revolut_Helper_Trait {
 	}
 
 	/**
+	 * Check if existing checkout order already processed
+	 *
+	 * @param string $revolut_public_id Revolut revolut_public_id.
+	 */
+	public function check_existing_checkout_order_already_processed( $revolut_public_id = null ) {
+		try {
+			if ( ! $revolut_public_id ) {
+				$revolut_public_id = $this->get_revolut_public_id();
+			}
+
+			if ( empty( $revolut_public_id ) ) {
+				return;
+			}
+
+			$oder_ids = $this->get_order_ids_by_public_id( $revolut_public_id );
+
+			if ( empty( $oder_ids['wc_order_id'] ) || empty( $oder_ids['order_id'] ) ) {
+				return;
+			}
+
+			$redirect_url = $this->check_existing_order_already_processed( $oder_ids['wc_order_id'], $oder_ids['order_id'] );
+
+			return $redirect_url;
+		} catch ( Exception $e ) {
+			$this->log_error( 'check_existing_checkout_order_already_processed failed : ' . $e->getMessage() );
+		}
+	}
+
+	/**
+	 * Check if existing checkout order already processed
+	 */
+	public function check_existing_order_pay_page_order_already_processed() {
+		try {
+			if ( ! ( (bool) get_query_var( 'pay_for_order' ) ) || empty( get_query_var( 'key' ) ) ) {
+				return;
+			}
+
+			global $wp;
+
+			$wc_order_id = wc_clean( $wp->query_vars['order-pay'] );
+
+			if ( ! $wc_order_id ) {
+				return;
+			}
+
+			$revolut_order_id = $this->get_revolut_order_by_wc_order_id( $wc_order_id );
+
+			if ( empty( $revolut_order_id ) ) {
+				return;
+			}
+
+			$redirect_url = $this->check_existing_order_already_processed( $wc_order_id, $revolut_order_id );
+
+			return $redirect_url;
+		} catch ( Exception $e ) {
+			$this->log_error( 'check_existing_order_pay_page_order_already_processed failed : ' . $e->getMessage() );
+		}
+	}
+
+	/**
+	 * Check if existing order already processed
+	 *
+	 * @param int    $wc_order_id WooCommerce order id.
+	 * @param string $revolut_order_id Revolut order id.
+	 */
+	public function check_existing_order_already_processed( $wc_order_id, $revolut_order_id ) {
+		try {
+			if ( empty( $wc_order_id ) || empty( $revolut_order_id ) ) {
+				return;
+			}
+
+			$revolut_order = MerchantApi::private()->get( "/orders/$revolut_order_id" );
+
+			if ( ! isset( $revolut_order['state'] ) || 'pending' === $revolut_order['state'] ) {
+				return;
+			}
+
+			$wc_order = wc_get_order( (int) $wc_order_id );
+
+			if ( ! $wc_order->get_id() ) {
+				return;
+			}
+
+
+			switch ( $revolut_order['state'] ) {
+				case 'authorised':
+					$this->capture_payment( $revolut_order_id );
+					$this->process_authorised_order( $revolut_order_id, $wc_order_id, false );
+					$this->unset_revolut_public_id();
+
+					return $wc_order->get_checkout_order_received_url();
+				case 'completed':
+					$this->process_captured_order( $revolut_order_id, $wc_order_id );
+
+					$this->unset_revolut_public_id();
+
+					return $wc_order->get_checkout_order_received_url();
+				case 'processing':
+				case 'cancelled':
+				case 'failed':
+					$wc_order->update_status( 'cancelled' );
+					$this->unset_revolut_public_id();
+					break;
+			}
+		} catch ( Exception $e ) {
+			$this->log_error( 'check_existing_order_already_processed failed : ' . $e->getMessage() );
+		}
+	}
+
+	/**
+	 * Cancel exisiting order if needed.
+	 *
+	 * @param string $revolut_public_id Revolut revolut_public_id.
+	 */
+	public function maybe_cancel_existing_order( $revolut_public_id ) {
+		try {
+			$revolut_order_id = $this->get_revolut_order_by_public_id( $revolut_public_id );
+
+			if ( empty( $revolut_order_id ) ) {
+				return;
+			}
+
+			$revolut_order = MerchantApi::private()->get( "/orders/$revolut_order_id" );
+
+			if ( ! isset( $revolut_order['state'] ) || 'pending' === $revolut_order['state'] ) {
+				return;
+			}
+
+			$wc_order_id = (int) $this->get_wc_order_id_by_revolut_order_id( $revolut_order_id );
+
+			if ( empty( $wc_order_id ) ) {
+				return;
+			}
+
+			$wc_order = wc_get_order( $wc_order_id );
+
+			if ( ! $wc_order->get_id() ) {
+				return;
+			}
+
+			switch ( $revolut_order['state'] ) {
+				case 'processing':
+				case 'cancelled':
+				case 'failed':
+					$wc_order->update_status( 'cancelled' );
+					break;
+			}
+		} catch ( Exception $e ) {
+			$this->log_error( 'maybe_cancel_existing_order failed : ' . $e->getMessage() );
+		}
+	}
+
+	/**
+	 * Verify is paid amount and order total are equal
+	 *
+	 * @param string   $revolut_order_id Revolut order id.
+	 * @param WC_Order $wc_order WooCommerce order.
+	 *
+	 * @throws Exception Exception.
+	 */
+	protected function verify_order_total( $revolut_order_id, $wc_order ) {
+		$revolut_order          = MerchantApi::privateLegacy()->get( '/orders/' . $revolut_order_id );
+		$revolut_order_total    = $this->get_revolut_order_amount( $revolut_order );
+		$revolut_order_currency = $this->get_revolut_order_currency( $revolut_order );
+
+		if ( empty( $revolut_order_total ) || empty( $revolut_order_currency ) ) {
+			/* translators: %s: Revolut order id. */
+			$wc_order->add_order_note( sprintf( __( 'Can\'t retrieve payment amount for this order. Please check your Revolut Business account (Order ID: %s)', 'revolut-gateway-for-woocommerce' ), $revolut_order_id ) );
+			return;
+		}
+
+		$wc_order_currency = $wc_order->get_currency();
+		$wc_order_total    = $this->get_revolut_order_total( $wc_order->get_total(), $wc_order_currency );
+
+		if ( $wc_order_total !== $revolut_order_total || strtolower( $revolut_order_currency ) !== strtolower( $wc_order_currency ) ) {
+			if ( abs( $wc_order_total - $revolut_order_total ) < 100 ) {
+				return;
+			}
+
+			$wc_order_total      = $this->get_wc_order_total( $wc_order_total, $wc_order_currency );
+			$revolut_order_total = $this->get_wc_order_total( $revolut_order_total, $revolut_order_currency );
+
+			$order_message  = '<b>Difference detected between order and payment total.</b> Please verify order with the customer. (Order ID: ' . $revolut_order_id . ').';
+			$order_message .= ' Order Total: ' . $wc_order->get_total() . strtoupper( $wc_order_currency );
+			$order_message .= ' Paid amount: ' . $revolut_order_total . strtoupper( $revolut_order_currency );
+
+			$wc_order->add_order_note( wp_kses_post( $order_message ) );
+			$wc_order->update_status( 'on-hold' );
+		}
+	}
+
+	/**
 	 * Save line items info into Revolut order.
 	 *
 	 * @param int    $wc_order_id WooCommerce order id.
@@ -576,8 +768,11 @@ trait WC_Gateway_Revolut_Helper_Trait {
 		}
 
 		try {
-			$wc_order                   = wc_get_order( $wc_order_id );
-			$is_revolut_order_processed = (int) $wc_order->get_meta( 'is_revolut_order_processed' );
+			$wc_order = wc_get_order( $wc_order_id );
+
+			$options = ServiceProvider::optionRepository();
+
+			$is_revolut_order_processed = (int) $options->get( 'is_revolut_order_processed_' . $revolut_order_id );
 
 			if ( $is_revolut_order_processed ) {
 				return false;
@@ -589,8 +784,10 @@ trait WC_Gateway_Revolut_Helper_Trait {
 
 			$wc_order->payment_complete( $revolut_order_id );
 			$wc_order->add_order_note( 'Payment has been successfully captured (Order ID: ' . $revolut_order_id . ').' );
-			$wc_order->update_meta_data( 'is_revolut_order_processed', true );
+			$options->add( 'is_revolut_order_processed_' . $revolut_order_id, 1 );
 			$wc_order->save();
+
+			$this->verify_order_total( $revolut_order_id, $wc_order );
 		} finally {
 			$process_captured_order_lock->release();
 		}
@@ -615,9 +812,11 @@ trait WC_Gateway_Revolut_Helper_Trait {
 		}
 
 		try {
-			$wc_order                    = wc_get_order( $wc_order_id );
-			$is_revolut_order_authorised = (int) $wc_order->get_meta( 'is_revolut_order_authorised' );
-			$is_revolut_order_processed  = (int) $wc_order->get_meta( 'is_revolut_order_processed' );
+			$wc_order = wc_get_order( $wc_order_id );
+			$options  = ServiceProvider::optionRepository();
+
+			$is_revolut_order_processed  = (int) $options->get( 'is_revolut_order_processed_' . $revolut_order_id );
+			$is_revolut_order_authorised = (int) $options->get( 'is_revolut_order_authorised_' . $revolut_order_id );
 
 			$mode = ServiceProvider::apiConfigProvider()->getConfigValue( 'payment_action' );
 
@@ -632,8 +831,8 @@ trait WC_Gateway_Revolut_Helper_Trait {
 			$is_pay_by_bank_method = $wc_order->get_payment_method() === WC_Gateway_Revolut_Pay_By_Bank::GATEWAY_ID;
 
 			$wc_order->update_status( 'on-hold' );
-			$wc_order->update_meta_data( 'is_revolut_order_authorised', true );
 			$wc_order->add_order_note( 'Payment has been successfully authorized (Order ID: ' . $revolut_order_id . ').' );
+			$options->add( 'is_revolut_order_authorised_' . $revolut_order_id, 1 );
 
 			if ( $is_pay_by_bank_method ) {
 				$wc_order->add_order_note(
@@ -683,6 +882,16 @@ trait WC_Gateway_Revolut_Helper_Trait {
 	 * @param string $revolut_order_id Revolut order id.
 	 */
 	protected function is_authorised_payment( $revolut_order_id ) {
+		$revolut_order = MerchantApi::privateLegacy()->get( '/orders/' . $revolut_order_id );
+		return ( isset( $revolut_order['state'] ) && ( 'AUTHORISED' === $revolut_order['state'] ) );
+	}
+
+	/**
+	 * Check if payment is authorised or completed.
+	 *
+	 * @param string $revolut_order_id Revolut order id.
+	 */
+	protected function is_authorised_or_completed_payment( $revolut_order_id ) {
 		$revolut_order = MerchantApi::privateLegacy()->get( '/orders/' . $revolut_order_id );
 		return ( isset( $revolut_order['state'] ) && ( 'AUTHORISED' === $revolut_order['state'] || 'COMPLETED' === $revolut_order['state'] ) );
 	}
@@ -958,6 +1167,54 @@ trait WC_Gateway_Revolut_Helper_Trait {
 					'SELECT HEX(order_id) FROM ' . $wpdb->prefix . 'wc_revolut_orders
                 WHERE public_id=UNHEX(REPLACE(%s, "-", ""))',
 					array( $public_id )
+				)
+			)
+		);
+	}
+
+	/**
+	 * Fetch order ids by public id
+	 *
+	 * @param String $public_id Revolut public id.
+	 *
+	 * @return string|null
+	 */
+	public function get_order_ids_by_public_id( $public_id ) {
+		global $wpdb;
+		// resolve into order_id.
+		$result =
+			$wpdb->get_row( // phpcs:ignore
+				$wpdb->prepare(
+					'SELECT HEX(order_id) as order_id, wc_order_id FROM ' . $wpdb->prefix . 'wc_revolut_orders
+                WHERE public_id=UNHEX(REPLACE(%s, "-", ""))',
+					array( $public_id )
+				),
+				ARRAY_A
+			);
+
+
+		if ( ! empty( $result['order_id'] ) ) {
+			$result['order_id'] = $this->uuid_dashes( $result['order_id'] );
+		}
+
+		return $result;
+	}
+
+	/**
+	 * Fetch Revolut order by public id
+	 *
+	 * @param int $wc_order_id WooCommerce order id.
+	 *
+	 * @return string|null
+	 */
+	public function get_revolut_order_by_wc_order_id( $wc_order_id ) {
+		global $wpdb;
+
+		return $this->uuid_dashes(
+			$wpdb->get_col( // phpcs:ignore
+				$wpdb->prepare(
+					'SELECT HEX(order_id) FROM ' . $wpdb->prefix . 'wc_revolut_orders WHERE wc_order_id=%d',
+					array( $wc_order_id )
 				)
 			)
 		);

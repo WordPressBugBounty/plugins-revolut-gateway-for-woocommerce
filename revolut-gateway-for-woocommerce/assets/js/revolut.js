@@ -444,6 +444,26 @@ jQuery(function ($) {
     })
   }
 
+  function checkOrderAlreadyProcessed(publicId) {
+    return new Promise((resolve, reject) => {
+      $.ajax({
+        type: 'POST',
+        url: getAjaxURL('check_order_already_processed'),
+        data: {
+          revolut_public_id: publicId,
+          security: wc_revolut.nonce.check_order_already_processed,
+        },
+        success: function (response) {
+          if (response && response.order_already_processed) {
+            window.location.href = response.redirect_url
+          } else {
+            resolve()
+          }
+        },
+      })
+    })
+  }
+
   /**
    * Handle if success
    */
@@ -478,42 +498,44 @@ jQuery(function ($) {
     data['revolut_save_payment_method'] = isCardPaymentSelected ? savePaymentMethod : 0
     data['wc-revolut_cc-payment-token'] = isCardPaymentSelected ? payment_token : ''
 
-    capturePayment(currentPaymentMethod.publicId, errorMessage)
-      .catch(error => {
-        stopProcessing()
-        displayWooCommerceError(`<div class="woocommerce-error">${error.message}</div>`)
-      })
-      .then(() =>
-        pollPaymentResult(currentPaymentMethod.publicId, errorMessage).then(() => {
-          $.ajax({
-            type: 'POST',
-            dataType: 'json',
-            url: getAjaxURL('process_payment_result'),
-            data: data,
-            success: processPaymentResultSuccess,
-            error: function (jqXHR, textStatus, errorThrown) {
-              if (jqXHR && jqXHR.responseText) {
-                let response = jqXHR.responseText.match(/{(.*?)}/)
-                if (response && response.length > 0) {
-                  try {
-                    response = JSON.parse(response[0])
-                    if (response.result && response.redirect) {
-                      return processPaymentResultSuccess(response)
+    pollPaymentResult(currentPaymentMethod.publicId, errorMessage, false).then(() => {
+      capturePayment(currentPaymentMethod.publicId, errorMessage)
+        .catch(error => {
+          stopProcessing()
+          displayWooCommerceError(`<div class="woocommerce-error">${error.message}</div>`)
+        })
+        .then(() =>
+          pollPaymentResult(currentPaymentMethod.publicId, errorMessage).then(() => {
+            $.ajax({
+              type: 'POST',
+              dataType: 'json',
+              url: getAjaxURL('process_payment_result'),
+              data: data,
+              success: processPaymentResultSuccess,
+              error: function (jqXHR, textStatus, errorThrown) {
+                if (jqXHR && jqXHR.responseText) {
+                  let response = jqXHR.responseText.match(/{(.*?)}/)
+                  if (response && response.length > 0) {
+                    try {
+                      response = JSON.parse(response[0])
+                      if (response.result && response.redirect) {
+                        return processPaymentResultSuccess(response)
+                      }
+                    } catch (e) {
+                      // swallow error and handle in generic block below
                     }
-                  } catch (e) {
-                    // swallow error and handle in generic block below
                   }
                 }
-              }
 
-              stopProcessing()
-              displayWooCommerceError(
-                `<div class="woocommerce-error">${errorThrown}</div>`,
-              )
-            },
-          })
-        }),
-      )
+                stopProcessing()
+                displayWooCommerceError(
+                  `<div class="woocommerce-error">${errorThrown}</div>`,
+                )
+              },
+            })
+          }),
+        )
+    })
   }
 
   function processPaymentResultSuccess(result) {
@@ -561,6 +583,10 @@ jQuery(function ($) {
     showPayByBankLogos()
 
     const currentPaymentMethod = getPaymentMethod()
+
+    if (currentPaymentMethod) {
+      checkOrderAlreadyProcessed(currentPaymentMethod.publicId)
+    }
 
     $('.payment_method_revolut_pay')
       .find('label')
@@ -1053,43 +1079,46 @@ jQuery(function ($) {
    */
   function submitWooCommerceOrder() {
     return new Promise(function (resolve, reject) {
-      if ($body.hasClass('woocommerce-order-pay')) {
-        return validateOrderPayForm().then(function (valid) {
-          resolve(valid)
-        })
-      }
-
       const currentPaymentMethod = getPaymentMethod()
-      $.ajax({
-        type: 'POST',
-        url: wc_checkout_params.checkout_url,
-        data:
-          $form.serialize() +
-          '&revolut_create_wc_order=1&revolut_public_id=' +
-          currentPaymentMethod.publicId,
-        dataType: 'json',
-        success: function (result) {
-          processWooCommerceOrderSubmissionSuccess(result, resolve)
-        },
-        error: function (jqXHR, textStatus, errorThrown) {
-          if (jqXHR && jqXHR.responseText) {
-            let response = jqXHR.responseText.match(/{(.*?)}/)
-            if (response && response.length > 0) {
-              try {
-                response = JSON.parse(response[0])
-                if (response.result) {
-                  return processWooCommerceOrderSubmissionSuccess(response, resolve)
+
+      checkOrderAlreadyProcessed(currentPaymentMethod.publicId).then(() => {
+        if ($body.hasClass('woocommerce-order-pay')) {
+          return validateOrderPayForm().then(function (valid) {
+            resolve(valid)
+          })
+        }
+
+        $.ajax({
+          type: 'POST',
+          url: wc_checkout_params.checkout_url,
+          data:
+            $form.serialize() +
+            '&revolut_create_wc_order=1&revolut_public_id=' +
+            currentPaymentMethod.publicId,
+          dataType: 'json',
+          success: function (result) {
+            processWooCommerceOrderSubmissionSuccess(result, resolve)
+          },
+          error: function (jqXHR, textStatus, errorThrown) {
+            if (jqXHR && jqXHR.responseText) {
+              let response = jqXHR.responseText.match(/{(.*?)}/)
+              if (response && response.length > 0) {
+                try {
+                  response = JSON.parse(response[0])
+                  if (response.result) {
+                    return processWooCommerceOrderSubmissionSuccess(response, resolve)
+                  }
+                } catch (e) {
+                  // swallow error and handle in generic block below
                 }
-              } catch (e) {
-                // swallow error and handle in generic block below
               }
             }
-          }
 
-          stopProcessing()
-          resolve(false)
-          displayWooCommerceError(`<div class="woocommerce-error">${errorThrown}</div>`)
-        },
+            stopProcessing()
+            resolve(false)
+            displayWooCommerceError(`<div class="woocommerce-error">${errorThrown}</div>`)
+          },
+        })
       })
     })
   }
