@@ -3,7 +3,7 @@ Contributors: revolutbusiness
 Tags: revolut, revolut business, revolut pay, payments, gateway
 Requires at least: 4.4
 Tested up to: 6.8.2
-Stable tag: 4.21.0
+Stable tag: 4.21.1
 Requires PHP: 7.2
 License: GPLv2 or later
 License URI: http://www.apache.org/licenses/LICENSE-2.0
@@ -98,6 +98,9 @@ To start accepting payments from your customers at great rates, install the plug
 5. The Revolut Pay Button settings
 
 == Changelog ==
+= 4.21.1 =
+* Improved payment flow for processing subscriptions
+
 = 4.21.0 =
 * Adjust Revolut Pro account connection flow
 * Fixed Order processing issues

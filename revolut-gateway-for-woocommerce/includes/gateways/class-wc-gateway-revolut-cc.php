@@ -9,6 +9,9 @@
  * @author Revolut
  */
 
+use Revolut\Plugin\Infrastructure\Api\MerchantApi;
+use Revolut\Wordpress\ServiceProvider;
+
 /**
  * WC_Gateway_Revolut_CC class.
  */
@@ -200,6 +203,42 @@ class WC_Gateway_Revolut_CC extends WC_Payment_Gateway_Revolut {
 	public function scheduled_subscription_payment( $amount_to_charge, $renewal_order ) {
 		try {
 			$wc_order_id = $renewal_order->get_id();
+
+			$process_subscription_payment_lock = ServiceProvider::processSubscriptionPaymentLock( $wc_order_id );
+
+			if ( ! $process_subscription_payment_lock->acquire() ) {
+				return false;
+			}
+
+			$revolut_order_id = $this->get_revolut_order( $wc_order_id );
+
+			if ( ! empty( $revolut_order_id ) ) {
+				$revolut_order = MerchantApi::private()->get( "/orders/$revolut_order_id" );
+
+				if ( empty( $revolut_order['state'] ) ) {
+					throw new Exception( "Can not load exist payment : $revolut_order_id" );
+				}
+
+				switch ( $revolut_order['state'] ) {
+					case 'authorised':
+					case 'completed':
+					case 'processing':
+						return $this->handle_revolut_order_result( $renewal_order, $revolut_order_id, true );
+					case 'cancelled':
+					case 'failed':
+						// if payment state is cancelled or failed.
+						// delete payment record and let to re-pay.
+						$this->delete_revolut_order_record( $wc_order_id );
+						$revolut_order_id = null;
+						break;
+					case 'pending':
+						// if payment state is pending.
+						// do nothing and let to repay.
+						break;
+				}
+			}
+
+
 			$renewal_order->update_meta_data( 'is_subscription_order', true );
 
 			$payment_token_id = $renewal_order->get_meta( '_payment_token_id', true );
@@ -222,10 +261,12 @@ class WC_Gateway_Revolut_CC extends WC_Payment_Gateway_Revolut {
 
 			$descriptor = new WC_Revolut_Order_Descriptor( $amount_to_charge, $renewal_order->get_currency(), $revolut_customer_id );
 
-			$revolut_payment_public_id = $this->create_subscription_order( $descriptor );
+			if ( empty( $revolut_order_id ) ) {
+				$revolut_payment_public_id = $this->create_subscription_order( $descriptor );
 
-			// resolve revolut_public_id into revolut_order_id.
-			$revolut_order_id = $this->get_revolut_order_by_public_id( $revolut_payment_public_id );
+				// resolve revolut_public_id into revolut_order_id.
+				$revolut_order_id = $this->get_revolut_order_by_public_id( $revolut_payment_public_id );
+			}
 
 			if ( empty( $revolut_order_id ) ) {
 				throw new Exception( 'Can not find Revolut order ID' );
@@ -255,6 +296,8 @@ class WC_Gateway_Revolut_CC extends WC_Payment_Gateway_Revolut {
 			$renewal_order->update_status( 'failed', 'An error occurred while Payment processing: ' . $e->getMessage() );
 			$this->log_error( $e->getMessage() );
 			return false;
+		} finally {
+			$process_subscription_payment_lock->release();
 		}
 
 		return true;

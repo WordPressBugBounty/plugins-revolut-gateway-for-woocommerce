@@ -1381,6 +1381,24 @@ abstract class WC_Payment_Gateway_Revolut extends WC_Payment_Gateway_CC {
 	}
 
 	/**
+	 * Delete payment record.
+	 *
+	 * @param int $order_id Woo Order Id.
+	 *
+	 * @return void
+	 */
+	public function delete_revolut_order_record( $order_id ) {
+		global $wpdb;
+
+		$wpdb->query(
+			$wpdb->prepare(
+				'DELETE FROM ' . $wpdb->prefix . 'wc_revolut_orders WHERE wc_order_id=%s',
+				array( $order_id )
+			)
+		); // db call ok; no-cache ok.
+	}
+
+	/**
 	 * Process a refund if supported.
 	 *
 	 * @param int    $order_id Order ID.

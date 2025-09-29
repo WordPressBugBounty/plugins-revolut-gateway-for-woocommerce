@@ -167,6 +167,15 @@ class ServiceProvider
         );
     }
 
+    public static function processSubscriptionPaymentLock($key, $timeout = 30): LockService
+    {
+        return new LockService(
+            self::optionRepository(),
+            strtoupper("revolut_process_subscription_payment_lock_{$key}"),
+            $timeout
+        );
+    }
+
     public static function processCapturedOrderLock($key, $timeout = 30): LockService
     {
         return new LockService(
