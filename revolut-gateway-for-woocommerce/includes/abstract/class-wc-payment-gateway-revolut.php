@@ -348,12 +348,20 @@ abstract class WC_Payment_Gateway_Revolut extends WC_Payment_Gateway_CC {
 		$wc_order->update_meta_data( 'is_express_checkout', $is_express_checkout );
 		$wc_order->save();
 
+		$reload = isset( WC()->session->reload_checkout );
+
+		if ( $reload ) {
+			WC()->session->set_customer_session_cookie( true );
+		}
+
 		if ( ! $revolut_pay_redirected ) {
 			return array(
-				'wc_order_id'            => $wc_order_id,
-				'process_payment_result' => wp_create_nonce( 'wc-revolut-process-payment-result' ),
-				'reload'                 => isset( WC()->session->reload_checkout ),
-				'result'                 => 'revolut_wc_order_created',
+				'wc_order_id'                => $wc_order_id,
+				'process_payment_result'     => wp_create_nonce( 'wc-revolut-process-payment-result' ),
+				'wc_revolut_capture_payment' => wp_create_nonce( 'wc-revolut-capture-payment' ),
+				'wc_revolut_check_payment'   => wp_create_nonce( 'wc-revolut-check-payment' ),
+				'reload'                     => $reload,
+				'result'                     => 'revolut_wc_order_created',
 			);
 		}
 

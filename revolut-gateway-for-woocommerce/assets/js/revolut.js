@@ -1133,6 +1133,10 @@ jQuery(function ($) {
         return resolve(false)
       }
       wc_revolut.nonce.process_payment_result = orderSubmission.process_payment_result
+      wc_revolut.nonce.wc_revolut_check_payment = orderSubmission.wc_revolut_check_payment
+      wc_revolut.nonce.wc_revolut_capture_payment =
+        orderSubmission.wc_revolut_capture_payment
+
       wc_order_id = orderSubmission['wc_order_id']
       return resolve(true)
     }

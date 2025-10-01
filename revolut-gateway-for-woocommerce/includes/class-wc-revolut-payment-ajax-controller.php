@@ -396,7 +396,19 @@ class WC_Revolut_Payment_Ajax_Controller {
 	 * Check is payment completed
 	 */
 	public function wc_revolut_capture_payment() {
+		$nonce_value = $_REQUEST['security'] ; // phpcs:ignore
+		$logged_in_cookie = false;
+
+		if ( ! wp_verify_nonce( $nonce_value, 'wc-revolut-capture-payment' ) ) {
+			$logged_in_cookie            = isset( $_COOKIE[ LOGGED_IN_COOKIE ] ) ? wc_clean( wp_unslash( $_COOKIE[ LOGGED_IN_COOKIE ] ) ) : false;
+			$_COOKIE[ LOGGED_IN_COOKIE ] = '';
+		}
+
 		check_ajax_referer( 'wc-revolut-capture-payment', 'security' );
+
+		if ( $logged_in_cookie ) {
+			$_COOKIE[ LOGGED_IN_COOKIE ] = $logged_in_cookie;
+		}
 
 		$revolut_public_id = isset( $_POST['revolut_public_id'] ) ? wc_clean( wp_unslash( $_POST['revolut_public_id'] ) ) : '';
 		$revolut_order_id  = $this->get_revolut_order_by_public_id( $revolut_public_id );
@@ -469,7 +481,19 @@ class WC_Revolut_Payment_Ajax_Controller {
 	 * Check is payment completed
 	 */
 	public function wc_revolut_check_payment() {
+		$nonce_value = $_REQUEST['security'] ; // phpcs:ignore
+		$logged_in_cookie = false;
+
+		if ( ! wp_verify_nonce( $nonce_value, 'wc-revolut-check-payment' ) ) {
+			$logged_in_cookie            = isset( $_COOKIE[ LOGGED_IN_COOKIE ] ) ? wc_clean( wp_unslash( $_COOKIE[ LOGGED_IN_COOKIE ] ) ) : false;
+			$_COOKIE[ LOGGED_IN_COOKIE ] = '';
+		}
+
 		check_ajax_referer( 'wc-revolut-check-payment', 'security' );
+
+		if ( $logged_in_cookie ) {
+			$_COOKIE[ LOGGED_IN_COOKIE ] = $logged_in_cookie;
+		}
 
 		$revolut_public_id = isset( $_POST['revolut_public_id'] ) ? wc_clean( wp_unslash( $_POST['revolut_public_id'] ) ) : '';
 		$is_captured       = isset( $_POST['is_captured'] ) ? wc_clean( wp_unslash( $_POST['is_captured'] ) ) : '';
