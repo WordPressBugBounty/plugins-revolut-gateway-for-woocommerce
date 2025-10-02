@@ -235,7 +235,7 @@ trait WC_Gateway_Revolut_Helper_Trait {
 
 			$wc_order = wc_get_order( (int) $wc_order_id );
 
-			if ( ! $wc_order->get_id() ) {
+			if ( ! $wc_order || ! $wc_order->get_id() ) {
 				return;
 			}
 
@@ -292,7 +292,7 @@ trait WC_Gateway_Revolut_Helper_Trait {
 
 			$wc_order = wc_get_order( $wc_order_id );
 
-			if ( ! $wc_order->get_id() ) {
+			if ( ! $wc_order || ! $wc_order->get_id() ) {
 				return;
 			}
 

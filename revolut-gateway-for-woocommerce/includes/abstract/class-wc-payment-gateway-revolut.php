@@ -997,7 +997,7 @@ abstract class WC_Payment_Gateway_Revolut extends WC_Payment_Gateway_CC {
 
 			$wc_order = wc_get_order( $current_wc_order_id );
 
-			if ( ! $wc_order->get_id() ) {
+			if ( ! $wc_order || ! $wc_order->get_id() ) {
 				return true;
 			}
 
