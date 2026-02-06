@@ -43,7 +43,19 @@ jQuery(function ($) {
    * Custom BlockUI
    */
 
-  function customBlockUI() {
+  function blockUI() {
+    const form = $('form.checkout, #order_review, #add_payment_method').first()
+
+    if (form.length && $.fn.block) {
+      return form.addClass('processing').block({
+        message: null,
+        overlayCSS: {
+          background: '#fff',
+          opacity: 0.6,
+        },
+      })
+    }
+
     const backgroundElement = document.createElement('div')
     backgroundElement.className = 'revolutBlockUI'
     backgroundElement.id = 'revolutBlockUI'
@@ -56,7 +68,13 @@ jQuery(function ($) {
     document.body.appendChild(backgroundElement)
   }
 
-  function customUnblockUI() {
+  function unblockUI() {
+    const form = $('form.checkout, #order_review, #add_payment_method').first()
+
+    if (form.length && $.fn.block) {
+      form.removeClass('processing').unblock()
+    }
+
     const blockElement = document.getElementById('revolutBlockUI')
 
     if (blockElement) {
@@ -72,16 +90,7 @@ jQuery(function ($) {
     if (placeOrderButton) {
       placeOrderButton.disabled = true
     }
-
-    if ($.fn.block) {
-      $.blockUI({
-        message: null,
-        overlayCSS: { background: '#fff', opacity: 0.6 },
-      })
-      return
-    }
-
-    customBlockUI()
+    blockUI()
   }
 
   /**
@@ -92,14 +101,7 @@ jQuery(function ($) {
     if (placeOrderButton) {
       placeOrderButton.disabled = false
     }
-
-    if ($.fn.block) {
-      $.unblockUI()
-      $('.blockUI.blockOverlay').hide()
-      return
-    }
-
-    customUnblockUI()
+    unblockUI()
   }
 
   /**
@@ -498,6 +500,12 @@ jQuery(function ($) {
     data['revolut_save_payment_method'] = isCardPaymentSelected ? savePaymentMethod : 0
     data['wc-revolut_cc-payment-token'] = isCardPaymentSelected ? payment_token : ''
 
+    let isCaptured = true
+
+    if (PAYMENT_METHOD.RevolutPayByBank === currentPaymentMethod.methodId) {
+      isCaptured = !currentPaymentMethod.shouldProcessOnAuthorise
+    }
+
     pollPaymentResult(currentPaymentMethod.publicId, errorMessage, false).then(() => {
       capturePayment(currentPaymentMethod.publicId, errorMessage)
         .catch(error => {
@@ -505,35 +513,37 @@ jQuery(function ($) {
           displayWooCommerceError(`<div class="woocommerce-error">${error.message}</div>`)
         })
         .then(() =>
-          pollPaymentResult(currentPaymentMethod.publicId, errorMessage).then(() => {
-            $.ajax({
-              type: 'POST',
-              dataType: 'json',
-              url: getAjaxURL('process_payment_result'),
-              data: data,
-              success: processPaymentResultSuccess,
-              error: function (jqXHR, textStatus, errorThrown) {
-                if (jqXHR && jqXHR.responseText) {
-                  let response = jqXHR.responseText.match(/{(.*?)}/)
-                  if (response && response.length > 0) {
-                    try {
-                      response = JSON.parse(response[0])
-                      if (response.result && response.redirect) {
-                        return processPaymentResultSuccess(response)
+          pollPaymentResult(currentPaymentMethod.publicId, errorMessage, isCaptured).then(
+            () => {
+              $.ajax({
+                type: 'POST',
+                dataType: 'json',
+                url: getAjaxURL('process_payment_result'),
+                data: data,
+                success: processPaymentResultSuccess,
+                error: function (jqXHR, textStatus, errorThrown) {
+                  if (jqXHR && jqXHR.responseText) {
+                    let response = jqXHR.responseText.match(/{(.*?)}/)
+                    if (response && response.length > 0) {
+                      try {
+                        response = JSON.parse(response[0])
+                        if (response.result && response.redirect) {
+                          return processPaymentResultSuccess(response)
+                        }
+                      } catch (e) {
+                        // swallow error and handle in generic block below
                       }
-                    } catch (e) {
-                      // swallow error and handle in generic block below
                     }
                   }
-                }
 
-                stopProcessing()
-                displayWooCommerceError(
-                  `<div class="woocommerce-error">${errorThrown}</div>`,
-                )
-              },
-            })
-          }),
+                  stopProcessing()
+                  displayWooCommerceError(
+                    `<div class="woocommerce-error">${errorThrown}</div>`,
+                  )
+                },
+              })
+            },
+          ),
         )
     })
   }
@@ -667,6 +677,11 @@ jQuery(function ($) {
         revolut_pay_origin_url,
       } = typeof revolut_pay_button_style !== 'undefined' ? revolut_pay_button_style : {}
 
+      const { revCashbackLabelEnabled } =
+        typeof wc_revolut_pay_banner_data !== 'undefined'
+          ? wc_revolut_pay_banner_data
+          : {}
+
       const paymentOptions = {
         currency: currentPaymentMethod.currency,
         totalAmount: parseInt(currentPaymentMethod.total),
@@ -682,6 +697,7 @@ jQuery(function ($) {
           },
         ],
         buttonStyle: {
+          cashback: Boolean(Number(revCashbackLabelEnabled)),
           cashbackCurrency: currentPaymentMethod.currency,
           variant: revolut_pay_button_theme,
           height: revolut_pay_button_height,
@@ -931,7 +947,9 @@ jQuery(function ($) {
     })
 
     payByBankInstance = instance.payByBank({
-      createOrder: () => createPbbOrder(),
+      createOrder: () => {
+        return { publicId: currentPaymentMethod.publicId }
+      },
       onError: errorMsg => {
         if (errorMsg.error) {
           handlePaymentResult(errorMsg.error)
@@ -941,7 +959,7 @@ jQuery(function ($) {
       },
       onCancel: handleCancel,
       onSuccess: msg => {
-        handlePaymentResult('', msg.orderId)
+        handlePaymentResult()
       },
     })
   }
@@ -1127,6 +1145,11 @@ jQuery(function ($) {
     reload_checkout = orderSubmission.reload === true ? 1 : 0
 
     if (orderSubmission.result === 'revolut_wc_order_created') {
+      if (orderSubmission['already_paid']) {
+        window.location.href = orderSubmission.confirmation_redirect_url
+        return
+      }
+
       if (orderSubmission['refresh-checkout'] || !orderSubmission['wc_order_id']) {
         startProcessing()
         window.location.reload()
@@ -1179,7 +1202,7 @@ jQuery(function ($) {
 
         const currentPaymentMethod = getPaymentMethod()
 
-        if (isPaymentTokenSelected()) {
+        if (isRevolutCardPaymentOptionSelected() && isPaymentTokenSelected()) {
           const payment_token = $(
             'input[name="wc-revolut_cc-payment-token"]:checked',
           ).val()
@@ -1330,6 +1353,8 @@ jQuery(function ($) {
     return new Promise(function (resolve, reject) {
       startProcessing()
 
+      const currentPaymentMethod = getPaymentMethod()
+
       $.ajax({
         type: 'POST',
         url: getAjaxURL('validate_order_pay_form'),
@@ -1338,10 +1363,17 @@ jQuery(function ($) {
           '&wc_order_id=' +
           wc_revolut.order_id +
           '&wc_order_key=' +
-          wc_revolut.order_key,
+          wc_revolut.order_key +
+          '&revolut_public_id=' +
+          currentPaymentMethod.publicId,
         dataType: 'json',
         success: function (response) {
           if (response.result == 'success') {
+            if (response.already_paid) {
+              window.location.href = response.confirmation_redirect_url
+              return
+            }
+
             stopProcessing()
             return resolve(true)
           }
@@ -1470,6 +1502,9 @@ jQuery(function ($) {
     let availableCardBrands = target.dataset.availableCardBrands
     let savePaymentDetails = 0
     let savePaymentMethodFor = ''
+    let shouldProcessOnAuthorise = Boolean(
+      Number(target.dataset.shouldProcessOnAuthorise),
+    )
     if (currentPaymentMethod === PAYMENT_METHOD.CreditCard) {
       if ($('#wc-revolut_cc-new-payment-method').length) {
         savePaymentDetails = $('#wc-revolut_cc-new-payment-method:checked').length
@@ -1497,6 +1532,7 @@ jQuery(function ($) {
       redirectUrl: redirectUrl,
       hidePaymentMethod: hidePaymentMethod,
       availableCardBrands: availableCardBrands,
+      shouldProcessOnAuthorise: shouldProcessOnAuthorise,
     }
   }
 

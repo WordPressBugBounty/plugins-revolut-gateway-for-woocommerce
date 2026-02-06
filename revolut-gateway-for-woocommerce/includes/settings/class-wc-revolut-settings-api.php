@@ -74,6 +74,17 @@ class WC_Revolut_Settings_API extends WC_Settings_API {
 	public static $webhook_endpoint_new = 'wc/v3/revolut/webhook';
 
 	/**
+	 * New webhook endpoint path
+	 *
+	 * @var array
+	 */
+	public static $webhook_events = array(
+		'ORDER_COMPLETED',
+		'ORDER_AUTHORISED',
+		'ORDER_PAYMENT_FAILED',
+		'ORDER_PAYMENT_DECLINED',
+	);
+	/**
 	 * New address validation webhook endpoint path
 	 *
 	 * @var string
@@ -467,7 +478,7 @@ class WC_Revolut_Settings_API extends WC_Settings_API {
 			return true;
 		}
 
-		return ! empty( $this->get_option( 'api_key_live' ) )
+		return ! empty( $this->get_option( 'api_key' ) )
 			|| ! empty( $this->get_option( 'api_key_dev' ) )
 			|| ! empty( $this->get_option( 'api_key_sandbox' ) );
 	}
@@ -549,23 +560,21 @@ class WC_Revolut_Settings_API extends WC_Settings_API {
 			$mode = $this->get_option( 'mode' );
 			$mode = empty( $mode ) ? 'sandbox' : $mode;
 
-			$web_hook_url = get_site_url( null, self::$webhook_endpoint_new . '/' . $mode, 'https' );
+			$web_hook_url = rest_url( self::$webhook_endpoint_new . "/$mode" );
 
-			if ( strpos( $web_hook_url, 'http://localhost' ) !== false ) {
-				return false;
-			}
+			$webhook_url_list = MerchantApi::privateLegacy()->get( '/webhooks' );
 
-			if ( $this->get_option( $mode . '_revolut_webhook_domain' ) === $web_hook_url ) {
-				return false;
-			}
+			if ( ! empty( $webhook_url_list ) ) {
+				foreach ( $webhook_url_list as $webhook ) {
+					if ( $webhook['url'] === $web_hook_url ) {
 
-			$web_hook_url_list = MerchantApi::privateLegacy()->get( '/webhooks' );
+						if ( count( array_diff( self::$webhook_events, $webhook['events'] ) ) > 0 ) {
+							MerchantApi::privateLegacy()->delete( '/webhooks/' . $webhook['id'] );
+							return true;
+						}
 
-			if ( ! empty( $web_hook_url_list ) ) {
-				$web_hook_url_list = array_column( $web_hook_url_list, 'url' );
-
-				if ( in_array( $web_hook_url, $web_hook_url_list, true ) ) {
-					return false;
+						return false;
+					}
 				}
 			}
 		} catch ( Exception $e ) {
@@ -599,14 +608,11 @@ class WC_Revolut_Settings_API extends WC_Settings_API {
 			$mode = $this->get_option( 'mode' );
 			$mode = empty( $mode ) ? 'sandbox' : $mode;
 
-			$web_hook_url = rest_url() . self::$webhook_endpoint_new . "/$mode";
+			$web_hook_url = rest_url( self::$webhook_endpoint_new . "/$mode" );
 
 			$body = array(
 				'url'    => $web_hook_url,
-				'events' => array(
-					'ORDER_COMPLETED',
-					'ORDER_AUTHORISED',
-				),
+				'events' => self::$webhook_events,
 			);
 
 			$response = MerchantApi::privateLegacy()->post( '/webhooks', $body );

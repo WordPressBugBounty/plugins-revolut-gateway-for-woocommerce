@@ -3,7 +3,7 @@
         'name' => 'revolut/plugin',
         'pretty_version' => 'dev-master',
         'version' => 'dev-master',
-        'reference' => '3aaaae0972c8b65ba6728da7866aff71b914d1cc',
+        'reference' => 'bac8dc0ac1ee8c3b73f380746bad070b1be5a5f8',
         'type' => 'library',
         'install_path' => __DIR__ . '/../../',
         'aliases' => array(),
@@ -121,7 +121,7 @@
         'revolut/plugin' => array(
             'pretty_version' => 'dev-master',
             'version' => 'dev-master',
-            'reference' => '3aaaae0972c8b65ba6728da7866aff71b914d1cc',
+            'reference' => 'bac8dc0ac1ee8c3b73f380746bad070b1be5a5f8',
             'type' => 'library',
             'install_path' => __DIR__ . '/../../',
             'aliases' => array(),

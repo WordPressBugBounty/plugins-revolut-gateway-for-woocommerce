@@ -73,25 +73,25 @@ class WC_Revolut_Promotional_Settings extends WC_Revolut_Settings_API {
 	 */
 	public function init_form_fields() {
 		$this->form_fields = array(
-			'title'                         => array(
+			'title'                             => array(
 				'type'  => 'title',
 				'title' => __( 'Revolut Gateway - Rewards & Promotions Settings', 'revolut-gateway-for-woocommerce' ),
 			),
-			'gateway_upsell_banner_enabled' => array(
+			'gateway_upsell_banner_enabled'     => array(
 				'title'       => 'Reward banner',
 				'label'       => __( 'Offer your customers to join Revolut where they will receive exclusive rewards for signing up', 'revolut-gateway-for-woocommerce' ),
 				'type'        => 'checkbox',
 				'description' => 'This allows new signups to get a Revolut funded reward after checkout. Enabling this banner boosts payment conversion on average by 5%',
 				'default'     => 'yes',
 			),
-			'revolut_points_banner_enabled' => array(
+			'revolut_points_banner_enabled'     => array(
 				'title'       => 'Benefits banner',
 				'label'       => __( 'Displays informational banner with a brief description of Revolut Pay benefits', 'revolut-gateway-for-woocommerce' ),
 				'type'        => 'checkbox',
 				'description' => 'This allows your customers to open a pop-up with more details on the payment process and available benefits.',
 				'default'     => 'yes',
 			),
-			'revolut_pay_label_icon'        => array(
+			'revolut_pay_label_icon'            => array(
 				'title'       => 'Revolut Pay informational icon',
 				'description' => __( 'Displays an icon or a "Learn more" link which opens a pop-up with details on the Revolut Pay payment process and benefits', 'revolut-gateway-for-woocommerce' ),
 				'type'        => 'select',
@@ -104,6 +104,12 @@ class WC_Revolut_Promotional_Settings extends WC_Revolut_Settings_API {
 
 				),
 				'default'     => 'cashback',
+			),
+			'revolut_pay_button_cashback_label' => array(
+				'title'   => 'Cashback label',
+				'label'   => __( 'Displays a label under Revolut Pay button offering cashback to new customers' ),
+				'type'    => 'checkbox',
+				'default' => 'yes',
 			),
 		);
 	}
@@ -132,5 +138,12 @@ class WC_Revolut_Promotional_Settings extends WC_Revolut_Settings_API {
 		}
 
 		return $label_variant;
+	}
+
+	/**
+	 * Returns RPay button cashback label availability
+	 */
+	public function revolut_pay_cashback_enabled() {
+		return 'yes' === $this->get_option( 'revolut_pay_button_cashback_label' );
 	}
 }

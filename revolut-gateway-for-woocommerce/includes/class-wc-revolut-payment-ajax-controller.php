@@ -34,11 +34,19 @@ class WC_Revolut_Payment_Ajax_Controller {
 	private $config_provider;
 
 	/**
+	 * Advanced plugin settings
+	 *
+	 * @var WC_Revolut_Advanced_Settings
+	 */
+	public $advanced_settings;
+
+	/**
 	 * Constructor
 	 */
 	public function __construct() {
-		$this->config_provider = ServiceProvider::apiConfigProvider();
-		$this->api_settings    = WC_Revolut_Settings_API::instance();
+		$this->config_provider   = ServiceProvider::apiConfigProvider();
+		$this->api_settings      = WC_Revolut_Settings_API::instance();
+		$this->advanced_settings = WC_Revolut_Advanced_Settings::instance();
 
 		add_action( 'wc_ajax_wc_revolut_validate_checkout_fields', array( $this, 'wc_revolut_validate_checkout_fields' ) );
 		add_action( 'wc_ajax_wc_revolut_validate_order_pay_form', array( $this, 'wc_revolut_validate_order_pay_form' ) );
@@ -306,6 +314,17 @@ class WC_Revolut_Payment_Ajax_Controller {
 			$terms       = isset( $_POST['terms'] ) ? wc_clean( wp_unslash( $_POST['terms'] ) ) : '';
 			$order       = wc_get_order( $order_id );
 
+			$revolut_public_id = isset( $_POST['revolut_public_id'] ) ? wc_clean( wp_unslash( $_POST['revolut_public_id'] ) ) : '';
+			$revolut_order_id  = $this->get_revolut_order_by_public_id( $revolut_public_id );
+
+			$confirmation_redirect_url = $this->check_order_already_has_payment( $revolut_order_id, $order );
+			$already_paid              = ! empty( $confirmation_redirect_url );
+
+			// do not try to save new orderIds if order already paid.
+			if ( ! $already_paid ) {
+				$this->save_wc_order_id( $revolut_public_id, $revolut_order_id, $order_id, $order->get_order_number() );
+			}
+
 			if ( $order_id === $order->get_id() && hash_equals( $order->get_order_key(), $order_key ) && $order->needs_payment() ) {
 				do_action( 'woocommerce_before_pay_action', $order );
 				if ( ! empty( $terms_field ) && empty( $terms ) ) {
@@ -317,7 +336,9 @@ class WC_Revolut_Payment_Ajax_Controller {
 
 			wp_send_json(
 				array(
-					'result' => 'success',
+					'result'                    => 'success',
+					'already_paid'              => $already_paid,
+					'confirmation_redirect_url' => $confirmation_redirect_url,
 				)
 			);
 		} catch ( Exception $e ) {

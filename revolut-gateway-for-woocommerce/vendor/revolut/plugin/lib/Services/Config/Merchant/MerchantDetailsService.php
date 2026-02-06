@@ -54,7 +54,7 @@ class MerchantDetailsService implements MerchantDetailsServiceInterface
             return $this->availablePaymentMethods;
         }
 
-        $cacheKey = $this->keyAvailablePaymentMethods();
+        $cacheKey = $this->keyAvailablePaymentMethods($currency);
 
         $this->availablePaymentMethods = $this->repo->getCached($cacheKey);
 
@@ -84,9 +84,9 @@ class MerchantDetailsService implements MerchantDetailsServiceInterface
         return "{$mode}_revolut_merchant_public_key";
     }
 
-    private function keyAvailablePaymentMethods()
+    private function keyAvailablePaymentMethods(string $currency)
     {
         $mode = $this->apiConfig->getMode();
-        return "available_payment_methods_{$mode}";
+        return "available_payment_methods_{$mode}_{$currency}";
     }
 }

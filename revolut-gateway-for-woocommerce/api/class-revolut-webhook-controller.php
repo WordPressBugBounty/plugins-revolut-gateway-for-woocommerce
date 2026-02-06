@@ -249,7 +249,8 @@ class Revolut_Webhook_Controller extends \WC_REST_Data_Controller {
 	 * @return WP_Error|WP_REST_Response
 	 */
 	public function handle_revolut_webhook( $request ) {
-		$parameters       = $request->get_params();
+		$parameters = $request->get_params();
+
 		$revolut_order_id = '';
 		$event            = '';
 
@@ -294,7 +295,7 @@ class Revolut_Webhook_Controller extends \WC_REST_Data_Controller {
 			);
 		}
 
-		if ( ! in_array( $event, array( 'ORDER_COMPLETED', 'ORDER_AUTHORISED' ), true ) ) {
+		if ( ! in_array( $event, array( 'ORDER_COMPLETED', 'ORDER_AUTHORISED', 'ORDER_PAYMENT_DECLINED', 'ORDER_PAYMENT_FAILED' ), true ) ) {
 			return new WP_REST_Response(
 				array(
 					'status'  => 'Failed',
@@ -325,10 +326,28 @@ class Revolut_Webhook_Controller extends \WC_REST_Data_Controller {
 			);
 		}
 
-		if ( 'ORDER_AUTHORISED' === $event ) {
+		if ( in_array( $event, array( 'ORDER_PAYMENT_DECLINED', 'ORDER_PAYMENT_FAILED' ), true ) ) {
 			$is_subscription_payment = (int) $wc_order->get_meta( 'is_subscription_order' );
 
-			$this->capture_payment( $revolut_order_id );
+			if ( $is_subscription_payment ) {
+				$this->mark_wc_order_failed( $revolut_order_id, $wc_order->get_id() );
+			}
+
+			return new WP_REST_Response(
+				array(
+					'status' => 'OK',
+				),
+				200
+			);
+		}
+
+		if ( 'ORDER_AUTHORISED' === $event ) {
+			$is_subscription_payment = (int) $wc_order->get_meta( 'is_subscription_order' );
+			$is_express_checkout     = (int) $wc_order->get_meta( 'is_express_checkout' );
+
+			if ( ! $is_express_checkout ) {
+				$this->capture_payment( $revolut_order_id );
+			}
 
 			$result       = $this->process_authorised_order( $revolut_order_id, $wc_order->get_id(), $is_subscription_payment, true );
 			$response_msg = $result ? 'Payment AUTHORISED event hanled by webhook' : 'Payment AUTHORISED event hanled by main process';

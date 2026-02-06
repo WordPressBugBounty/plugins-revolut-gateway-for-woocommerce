@@ -345,8 +345,6 @@ class WC_Gateway_Revolut_Payment_Request extends WC_Payment_Gateway_Revolut {
 
 			$messages = wc_print_notices( true );
 
-			$this->log_error( '->>> start messages  - ' . $messages );
-
 			wp_send_json(
 				array(
 					'result'   => 'failure',

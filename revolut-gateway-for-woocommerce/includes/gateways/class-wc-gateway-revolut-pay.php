@@ -530,8 +530,8 @@ class WC_Gateway_Revolut_Pay extends WC_Payment_Gateway_Revolut {
 	 */
 	public function get_revolut_pay_banners_data() {
 		return array(
-			'revPointsBannerEnabled' => $this->points_banner_available(),
-			'revolutPayIconVariant'  => $this->promotional_settings->revolut_pay_label_icon_variant(),
+			'revCashbackLabelEnabled' => $this->promotional_settings->revolut_pay_cashback_enabled(),
+			'revolutPayIconVariant'   => $this->promotional_settings->revolut_pay_label_icon_variant(),
 		);
 	}
 

@@ -223,6 +223,7 @@ class WC_Gateway_Revolut_CC extends WC_Payment_Gateway_Revolut {
 					case 'authorised':
 					case 'completed':
 					case 'processing':
+						WC_Subscriptions_Manager::process_subscription_payments_on_order( $renewal_order );
 						return $this->handle_revolut_order_result( $renewal_order, $revolut_order_id, true );
 					case 'cancelled':
 					case 'failed':
@@ -285,7 +286,12 @@ class WC_Gateway_Revolut_CC extends WC_Payment_Gateway_Revolut {
 			// check payment result and update order status.
 			$this->handle_revolut_order_result( $renewal_order, $revolut_order_id, true );
 
-			$message = sprintf( 'Subscription charge successfully initiated by Revolut (Order ID: %s)', $revolut_order_id );
+			$message = sprintf(
+				'Subscription payment successfully initiated by Revolut. ' .
+				'Payment request has been sent but is not yet confirmed (Order ID: %s).',
+				$revolut_order_id
+			);
+
 			$renewal_order->add_order_note( $message );
 			$renewal_order->update_meta_data( 'revolut_payment_order_id', $revolut_order_id );
 			$renewal_order->update_status( 'on-hold' );

@@ -187,8 +187,9 @@ class WC_Gateway_Revolut_Blocks_Support extends Automattic\WooCommerce\Blocks\Pa
 					'mobile_redirect_url' => $this->revolut_pay_gateway->get_redirect_url(),
 					'is_cart'             => is_cart(),
 					'banner'              => array(
-						'points_banner_enabled' => $this->revolut_pay_gateway->points_banner_available(),
-						'label_icon_variant'    => $this->revolut_pay_gateway->promotional_settings->revolut_pay_label_icon_variant(),
+						'points_banner_enabled'  => $this->revolut_pay_gateway->points_banner_available(),
+						'label_icon_variant'     => $this->revolut_pay_gateway->promotional_settings->revolut_pay_label_icon_variant(),
+						'cashback_label_enabled' => $this->revolut_pay_gateway->promotional_settings->revolut_pay_cashback_enabled(),
 					),
 					'styles'              => $this->revolut_pay_gateway->get_revolut_pay_button_styles(),
 				)
@@ -256,12 +257,13 @@ class WC_Gateway_Revolut_Blocks_Support extends Automattic\WooCommerce\Blocks\Pa
 				'amount'   => $descriptor->amount,
 			),
 			'route'                     => array(
-				'create_revolut_order'     => get_site_url() . '/?wc-ajax=wc_revolut_create_order',
-				'create_revolut_pbb_order' => get_site_url() . '/?wc-ajax=wc_revolut_create_pbb_order',
-				'process_order'            => get_site_url() . '/?wc-ajax=wc_revolut_process_payment_result',
-				'pay_with_token'           => get_site_url() . '/?wc-ajax=wc_revolut_pay_with_token',
-				'check_payment'            => get_site_url() . '/?wc-ajax=wc_revolut_check_payment',
-				'capture_payment'          => get_site_url() . '/?wc-ajax=wc_revolut_capture_payment',
+				'create_revolut_order'          => get_site_url() . '/?wc-ajax=wc_revolut_create_order',
+				'create_revolut_pbb_order'      => get_site_url() . '/?wc-ajax=wc_revolut_create_pbb_order',
+				'process_order'                 => get_site_url() . '/?wc-ajax=wc_revolut_process_payment_result',
+				'pay_with_token'                => get_site_url() . '/?wc-ajax=wc_revolut_pay_with_token',
+				'check_payment'                 => get_site_url() . '/?wc-ajax=wc_revolut_check_payment',
+				'capture_payment'               => get_site_url() . '/?wc-ajax=wc_revolut_capture_payment',
+				'check_order_already_processed' => get_site_url() . '/?wc-ajax=wc_revolut_check_order_already_processed',
 			),
 			'nonce'                     => array(
 				'create_revolut_order'          => wp_create_nonce( 'wc-revolut-create-order' ),

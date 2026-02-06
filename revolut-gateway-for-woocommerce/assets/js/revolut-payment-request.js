@@ -489,6 +489,7 @@ jQuery(function ($) {
       publicToken: wc_revolut_payment_request_params.publicToken,
     })
 
+    const { revCashbackLabelEnabled } = typeof wc_revolut_pay_banner_data !== 'undefined' ? wc_revolut_pay_banner_data : {}
     revolutPay.mount('#revolut-pay-express-checkout-button', {
       currency: wc_revolut_payment_request_params.currency,
       totalAmount: 0,
@@ -507,6 +508,7 @@ jQuery(function ($) {
           return getRevolutOrderPublicId().then(publicId => ({ publicId }))
         }),
       buttonStyle: {
+        cashback: Boolean(Number(revCashbackLabelEnabled)),
         cashbackCurrency: wc_revolut_payment_request_params.currency,
         variant: revolut_pay_button_style.revolut_pay_button_theme,
         height: revolut_pay_button_style.revolut_pay_button_height,

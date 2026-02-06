@@ -3,7 +3,7 @@ Contributors: revolutbusiness
 Tags: revolut, revolut business, revolut pay, payments, gateway
 Requires at least: 4.4
 Tested up to: 6.8.2
-Stable tag: 4.21.3
+Stable tag: 4.22.0
 Requires PHP: 7.2
 License: GPLv2 or later
 License URI: http://www.apache.org/licenses/LICENSE-2.0
@@ -96,6 +96,31 @@ To start accepting payments from your customers at great rates, install the plug
 3. The general Revolut API settings page for the Revolut Gateway for WooCommerce plugin
 4. The Credit card payment settings
 5. The Revolut Pay Button settings
+
+== Changelog ==
+= 4.22.0 =
+* Fixed an issue where the plugin attempts to capture an order after it was refunded
+* Fixed an edge case where a successful payment can be marked as failed
+* Stability improvment for shipping data collection
+
+= 4.21.9 =
+* Enhanced checkout loading spinner compatibility for third-party themes
+
+= 4.21.8 =
+* Added a toggle for turning off Revolut Pay cashback label
+
+= 4.21.7 =
+* Fixed block checkout account creation issue
+* Fixed subscription payment failed status sync
+
+= 4.21.6 =
+* Enabled Pay By Bank method on Block Checkout
+
+= 4.21.5 =
+* Fixed subscription payments maunal mode
+
+= 4.21.4 =
+* Fixed Pay By Bank order processing issue
 
 == Changelog ==
 = 4.21.3 =

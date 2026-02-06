@@ -8,7 +8,6 @@ use Revolut\Plugin\Services\Config\Api\ConfigProviderInterface;
 use Revolut\Plugin\Services\Repositories\TokenRepositoryInterface;
 use Revolut\Plugin\Services\Http\HttpClientInterface;
 use Revolut\Plugin\Services\Lock\LockInterface;
-use Revolut\Plugin\Services\Log\RLog;
 use Revolut\Plugin\Services\AuthConnect\Exceptions\TokenRefreshInProgressException;
 use Revolut\Plugin\Services\AuthConnect\TokenRefreshServiceInterface;
 use Revolut\Plugin\Services\Config\Api\ConfigInterface;
@@ -119,9 +118,8 @@ class AuthConnect implements TokenRefreshServiceInterface, AuthConnectServiceInt
         try {
             $token = $this->refreshToken();
         } catch (Exception $e) {
-            $dt = \DateTime::createFromFormat('U.u', microtime(true));
+            // swallow
         } finally {
-            $dt = \DateTime::createFromFormat('U.u', microtime(true));
             $this->lock->release();
         }
 
@@ -135,11 +133,6 @@ class AuthConnect implements TokenRefreshServiceInterface, AuthConnectServiceInt
         if (! $token) {
             throw new \Exception('No refresh token stored');
         }
-
-        $accessToken = $token->accessToken;
-
-        $dt = \DateTime::createFromFormat('U.u', microtime(true));
-        RLog::info("lock acquired for token - " . $accessToken . ' - ' .  $dt->format("H:i:s.u"));
 
         $params = array(
             'client_id'     => $this->getApiConfig()->getClientId(),
@@ -172,7 +165,6 @@ class AuthConnect implements TokenRefreshServiceInterface, AuthConnectServiceInt
         $this->repository->saveTokens($newToken);
 
         $savedTokens = $this->repository->getTokens();
-        RLog::info("savedToken - " . $token->accessToken . ' - ' .  $dt->format("H:i:s.u"));
 
         return $savedTokens;
     }
