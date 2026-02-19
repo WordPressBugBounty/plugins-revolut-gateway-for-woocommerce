@@ -555,7 +555,6 @@ class WC_Gateway_Revolut_CC extends WC_Payment_Gateway_Revolut {
 	 * Display payment icons
 	 */
 	public function get_icon() {
-		$icons_str = '<span class="revolut-label-informational-icon"></span>';
 
 		$available_card_brands = array();
 
@@ -566,14 +565,12 @@ class WC_Gateway_Revolut_CC extends WC_Payment_Gateway_Revolut {
 			$available_card_brands = $this->get_available_card_brands( $total, $currency );
 		}
 
-		$icons_str .= '<div>';
-
-		if ( in_array( 'amex', $available_card_brands, true ) ) {
-			$icons_str .= '<img class="revolut-card-gateway-icon-amex" src="' . WC_REVOLUT_PLUGIN_URL . '/assets/images/amex.svg" style="margin-left:2px" alt="Amex" />';
-		}
-
-		$icons_str .= '<img class="revolut-card-gateway-icon-visa" src="' . WC_REVOLUT_PLUGIN_URL . '/assets/images/visa.svg" style="margin-left:2px" alt="Visa" />';
+		$icons_str  = '<div class="revolut-scheme-icons-wrapper">';
+		$icons_str .= '<img class="revolut-card-gateway-icon-visa" src="' . WC_REVOLUT_PLUGIN_URL . '/assets/images/visa.svg" alt="Visa" />';
 		$icons_str .= '<img class="revolut-card-gateway-icon-mastercard" src="' . WC_REVOLUT_PLUGIN_URL . '/assets/images/mastercard.svg" alt="MasterCard" />';
+		if ( in_array( 'amex', $available_card_brands, true ) ) {
+			$icons_str .= '<img class="revolut-card-gateway-icon-amex" src="' . WC_REVOLUT_PLUGIN_URL . '/assets/images/amex.svg" alt="Amex" />';
+		}
 		$icons_str .= '</div>';
 
 		return apply_filters( 'woocommerce_gateway_icon', $icons_str, $this->id );

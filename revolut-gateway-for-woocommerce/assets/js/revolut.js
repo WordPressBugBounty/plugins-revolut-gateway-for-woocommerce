@@ -901,10 +901,9 @@ jQuery(function ($) {
       bank_logos += `<img src="${bank.logo.value}">`
     })
 
-    $('.payment_method_revolut_pay_by_bank').css({ padding: 0 })
     $("label[for='payment_method_revolut_pay_by_bank'] img").remove()
 
-    $("label[for='payment_method_revolut_pay_by_bank']").append(bank_logos)
+    $("label[for='payment_method_revolut_pay_by_bank']").append(`<div class="revolut-scheme-icons-wrapper">${bank_logos}</div>`)
 
     return {
       firstFive: bankList.slice(0, 5),

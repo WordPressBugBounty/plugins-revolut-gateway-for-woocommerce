@@ -3,7 +3,7 @@
         'name' => 'woocommerce/revolut-gateway-for-woocommerce',
         'pretty_version' => 'dev-master',
         'version' => 'dev-master',
-        'reference' => 'adbe0b3fced35c87b7505e7d14b58811e3868ebe',
+        'reference' => '9b217de6f72b77f8ecfd31504f4fefca84c864d7',
         'type' => 'library',
         'install_path' => __DIR__ . '/../../',
         'aliases' => array(),
@@ -22,7 +22,7 @@
         'woocommerce/revolut-gateway-for-woocommerce' => array(
             'pretty_version' => 'dev-master',
             'version' => 'dev-master',
-            'reference' => 'adbe0b3fced35c87b7505e7d14b58811e3868ebe',
+            'reference' => '9b217de6f72b77f8ecfd31504f4fefca84c864d7',
             'type' => 'library',
             'install_path' => __DIR__ . '/../../',
             'aliases' => array(),

@@ -6,4 +6,5 @@ $vendorDir = dirname(__DIR__);
 $baseDir = dirname($vendorDir);
 
 return array(
+    'WireMock\\' => array($vendorDir . '/wiremock-php/wiremock-php/src'),
 );

@@ -3,7 +3,7 @@ Contributors: revolutbusiness
 Tags: revolut, revolut business, revolut pay, payments, gateway
 Requires at least: 4.4
 Tested up to: 6.8.2
-Stable tag: 4.22.0
+Stable tag: 4.22.1
 Requires PHP: 7.2
 License: GPLv2 or later
 License URI: http://www.apache.org/licenses/LICENSE-2.0
@@ -98,6 +98,9 @@ To start accepting payments from your customers at great rates, install the plug
 5. The Revolut Pay Button settings
 
 == Changelog ==
+= 4.22.1 =
+* Minor styling adjustments to card scheme logos 
+
 = 4.22.0 =
 * Fixed an issue where the plugin attempts to capture an order after it was refunded
 * Fixed an edge case where a successful payment can be marked as failed

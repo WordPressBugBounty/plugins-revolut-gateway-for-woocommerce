@@ -122,6 +122,7 @@
   flex-wrap: wrap;
   justify-content: flex-end;
   gap: 2px;
+  margin-left: auto;
 }
 
 .revolut-pay-label-title-wrapper {
@@ -132,6 +133,7 @@
 
 .wc_payment_method.payment_method_revolut_pay,
 .wc_payment_method.payment_method_revolut_cc,
+.wc_payment_method.payment_method_revolut_pay_by_bank,
 .wc_payment_method.payment_method_revolut_payment_request {
   display: flex !important;
   flex-wrap: wrap;
@@ -143,12 +145,14 @@
 
 .payment_box.payment_method_revolut_pay,
 .payment_box.payment_method_revolut_cc,
-.payment_method_revolut_payment_request {
+.payment_box.payment_method_revolut_pay_by_bank,
+.payment_box.payment_method_revolut_payment_request {
   flex-basis: 100%;
 }
 
 .wc_payment_method.payment_method_revolut_pay label[for='payment_method_revolut_pay'],
 .wc_payment_method.payment_method_revolut_cc label[for='payment_method_revolut_cc'],
+.wc_payment_method.payment_method_revolut_pay_by_bank label[for='payment_method_revolut_pay_by_bank'],
 .wc_payment_method.payment_method_revolut_payment_request
   label[for='payment_method_revolut_payment_request'] {
   display: flex !important;
@@ -244,4 +248,8 @@
 .payment_method_revolut_pay_by_bank img {
   width: 25px;
   height: 25px;
+}
+
+.payment_method_revolut_payment_request img {
+  max-height: 24px;
 }
