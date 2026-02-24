@@ -79,9 +79,9 @@ class WC_Revolut_Promotional_Settings extends WC_Revolut_Settings_API {
 			),
 			'gateway_upsell_banner_enabled'     => array(
 				'title'       => 'Reward banner',
-				'label'       => __( 'Offer your customers to join Revolut where they will receive exclusive rewards for signing up', 'revolut-gateway-for-woocommerce' ),
+				'label'       => __( 'Let your customers earn rewards for signing up to Revolut with your link', 'revolut-gateway-for-woocommerce' ),
 				'type'        => 'checkbox',
-				'description' => 'This allows new signups to get a Revolut funded reward after checkout. Enabling this banner boosts payment conversion on average by 5%',
+				'description' => 'This banner can increase conversions by 5% and gives your customers a Revolut-funded reward. Without this banner, you can’t join our Merchant Affiliate Programme and earn cash rewards for referrals. Find out more below.',
 				'default'     => 'yes',
 			),
 			'revolut_points_banner_enabled'     => array(
@@ -92,7 +92,7 @@ class WC_Revolut_Promotional_Settings extends WC_Revolut_Settings_API {
 				'default'     => 'yes',
 			),
 			'revolut_pay_label_icon'            => array(
-				'title'       => 'Revolut Pay informational icon',
+				'title'       => 'Revolut Pay information',
 				'description' => __( 'Displays an icon or a "Learn more" link which opens a pop-up with details on the Revolut Pay payment process and benefits', 'revolut-gateway-for-woocommerce' ),
 				'type'        => 'select',
 				'class'       => 'wc-enhanced-select',
@@ -111,9 +111,40 @@ class WC_Revolut_Promotional_Settings extends WC_Revolut_Settings_API {
 				'type'    => 'checkbox',
 				'default' => 'yes',
 			),
+			'revolut_affiliate_program'         => array(
+				'type' => 'affiliate_program_section',
+			),
 		);
 	}
 
+	public function generate_affiliate_program_section_html() {
+
+		ob_start();
+		?>
+		<tr valign="top">
+			<th scope="row" class="titledesc">
+				<label>Merchant Affiliate Programme</label>
+			</th>
+			<td class="forminp">
+				<p class="description">Earn cash rewards for every new customer you refer to Revolut — an easy way to earn back the cost of processing fees. Some of our merchants offset up to 50% of their fees through our Revolut Merchant Affiliate Programme. Plus, you get more customers who can pay in 1-click with Revolut Pay.</p>
+				<p class="description">
+					<a 
+						target="_blank" 
+						href='https://app.impact.com/campaign-campaign-info-v2/Revolut-Brand.brand?io=EYZ1y6ipUxQkpBEDNsR%2FmYlxR0LrkCUqwW9SOpjbIEkbgRJH3lCxQaN1IytrjPFZ'>
+						Apply to Affiliate Programme
+					</a> 
+					or 
+					<a 
+						target="_blank" 
+						href='https://developer.revolut.com/docs/resources/marketing-assets-guidelines/marketing-guidelines#affiliate-program---get-paid-for-introducing-new-customers-to-revolut'>
+						Find out more
+					</a>
+			</td>
+		</tr>
+		<?php
+		return ob_get_clean();
+
+	}
 	/**
 	 * Returns upsell banner availability
 	 */
