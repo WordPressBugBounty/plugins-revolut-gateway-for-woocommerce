@@ -1535,16 +1535,11 @@ abstract class WC_Payment_Gateway_Revolut extends WC_Payment_Gateway_CC {
 				'billing_phone' => $context->order->get_billing_phone(),
 				'billing_email' => $context->order->get_billing_email(),
 			);
-			$is_pay_by_bank                = WC_Gateway_Revolut_Pay_By_Bank::GATEWAY_ID === $context->payment_method;
 			$is_express_checkout           = isset( $context->payment_data['is_express_checkout'] ) ? $context->payment_data['is_express_checkout'] : false;
 			$willCreateAccount             = isset( $context->payment_data['will_create_account'] ) ? $context->payment_data['will_create_account'] : false;
 			$wc_payment_token_id           = isset( $context->payment_data['wc-revolut_cc-payment-token'] ) ? $context->payment_data['wc-revolut_cc-payment-token'] : null;
 			$is_using_saved_payment_method = ! empty( $wc_payment_token_id );
-			$revolut_public_id             = $this->get_revolut_public_id();
-
-			if ( $is_pay_by_bank ) {
-				$revolut_public_id = $this->get_revolut_pbb_order_public_id();
-			}
+			$revolut_public_id             = isset( $context->payment_data['public_id'] ) ? $context->payment_data['public_id'] : null;
 
 			if ( $is_using_saved_payment_method && ! $is_express_checkout ) {
 				$revolut_public_id = $this->handle_blocks_saved_payment_method( $context->order, $revolut_public_id );
