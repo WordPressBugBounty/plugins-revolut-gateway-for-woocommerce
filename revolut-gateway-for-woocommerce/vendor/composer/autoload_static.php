@@ -86,6 +86,8 @@ class ComposerStaticInit91a2c1deb4ee1f93baf70cfbce521801
         'Revolut\\Plugin\\Types\\Email' => __DIR__ . '/..' . '/revolut/plugin/lib/Types/Email.php',
         'Revolut\\Plugin\\Types\\PhoneNumber' => __DIR__ . '/..' . '/revolut/plugin/lib/Types/PhoneNumber.php',
         'Revolut\\Plugin\\Types\\ValueObject' => __DIR__ . '/..' . '/revolut/plugin/lib/Types/ValueObject.php',
+        'Revolut\\Wordpress\\Actions\\RevolutUpdatePluginAction' => __DIR__ . '/../..' . '/src/Actions/RevolutUpdatePluginAction.php',
+        'Revolut\\Wordpress\\Actions\\RevolutUpgradeProcessCompleteAction' => __DIR__ . '/../..' . '/src/Actions/RevolutUpgradeProcessCompleteAction.php',
         'Revolut\\Wordpress\\Infrastructure\\AuthConnectJob' => __DIR__ . '/../..' . '/src/Infrastructure/AuthConnectJob.php',
         'Revolut\\Wordpress\\Infrastructure\\Config\\ApiConfigProvider' => __DIR__ . '/../..' . '/src/Infrastructure/Config/ApiConfigProvider.php',
         'Revolut\\Wordpress\\Infrastructure\\Config\\StoreDetailsAdapter' => __DIR__ . '/../..' . '/src/Infrastructure/Config/StoreDetailsAdapter.php',

@@ -8,6 +8,8 @@
  * @since      2.0.0
  */
 
+use Revolut\Wordpress\ServiceProvider;
+
 defined( 'ABSPATH' ) || exit();
 
 /**
@@ -101,6 +103,8 @@ class WC_Revolut_Manager {
 		new WC_Gateway_Revolut_Payment_Request();
 		new WC_Gateway_Revolut_Pay();
 		new WC_Gateway_Revolut_Pay_By_Bank();
+		ServiceProvider::pluginUpdateCheckAction()->register();
+		ServiceProvider::pluginUpgradeCompleteAction()->register();
 	}
 }
 

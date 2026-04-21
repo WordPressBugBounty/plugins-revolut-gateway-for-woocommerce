@@ -66,6 +66,8 @@ return array(
     'Revolut\\Plugin\\Types\\Email' => $vendorDir . '/revolut/plugin/lib/Types/Email.php',
     'Revolut\\Plugin\\Types\\PhoneNumber' => $vendorDir . '/revolut/plugin/lib/Types/PhoneNumber.php',
     'Revolut\\Plugin\\Types\\ValueObject' => $vendorDir . '/revolut/plugin/lib/Types/ValueObject.php',
+    'Revolut\\Wordpress\\Actions\\RevolutUpdatePluginAction' => $baseDir . '/src/Actions/RevolutUpdatePluginAction.php',
+    'Revolut\\Wordpress\\Actions\\RevolutUpgradeProcessCompleteAction' => $baseDir . '/src/Actions/RevolutUpgradeProcessCompleteAction.php',
     'Revolut\\Wordpress\\Infrastructure\\AuthConnectJob' => $baseDir . '/src/Infrastructure/AuthConnectJob.php',
     'Revolut\\Wordpress\\Infrastructure\\Config\\ApiConfigProvider' => $baseDir . '/src/Infrastructure/Config/ApiConfigProvider.php',
     'Revolut\\Wordpress\\Infrastructure\\Config\\StoreDetailsAdapter' => $baseDir . '/src/Infrastructure/Config/StoreDetailsAdapter.php',

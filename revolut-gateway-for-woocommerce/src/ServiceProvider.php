@@ -27,7 +27,10 @@ use Revolut\Plugin\Services\Config\Merchant\MerchantDetailsServiceInterface;
 use Revolut\Plugin\Services\Config\Store\StoreDetailsService;
 use Revolut\Plugin\Services\Config\Store\StoreDetailsServiceInterface;
 use Revolut\Plugin\Services\Webhooks\WebhooksService;
+use Revolut\Wordpress\Actions\RevolutUpdatePluginAction;
+use Revolut\Wordpress\Actions\RevolutUpgradeProcessCompleteAction;
 use Revolut\Wordpress\Infrastructure\Config\StoreDetailsAdapter;
+
 
 class ServiceProvider
 {
@@ -210,4 +213,12 @@ class ServiceProvider
             self::httpClient()
         );
     }
+
+	public static function pluginUpdateCheckAction(): RevolutUpdatePluginAction {
+		return new RevolutUpdatePluginAction( self::httpClient(), self::storeDetailsService() );
+	}
+
+	public static function pluginUpgradeCompleteAction(): RevolutUpgradeProcessCompleteAction {
+		return new RevolutUpgradeProcessCompleteAction( self::httpClient(), self::storeDetailsService() );
+	}
 }

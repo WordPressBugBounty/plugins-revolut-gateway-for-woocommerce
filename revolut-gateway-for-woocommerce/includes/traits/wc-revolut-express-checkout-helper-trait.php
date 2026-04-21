@@ -42,7 +42,7 @@ trait WC_Gateway_Revolut_Express_Checkout_Helper_Trait {
 	public function calculate_shipping( $address = array() ) {
 		$country   = $address['country'];
 		$state     = $this->convert_state_name_to_id( $address['country'], $address['state'] );
-		$postcode  = $address['postcode'];
+		$postcode  = $this->get_normalized_postcode( $address['postcode'], $country );
 		$city      = $address['city'];
 		$address_1 = $address['address'];
 		$address_2 = $address['address_2'];
@@ -90,6 +90,29 @@ trait WC_Gateway_Revolut_Express_Checkout_Helper_Trait {
 		$packages    = apply_filters( 'woocommerce_cart_shipping_packages', $packages );
 
 		WC()->shipping->calculate_shipping( $packages );
+	}
+
+	/**
+	 * Currently, Apple Pay truncates the UK and Canadian postal codes to the first 4 and 3 characters respectively
+	 * when passing it back from the shippingcontactselected object. This causes WC to invalidate
+	 * the postal code and not calculate shipping zones correctly.
+	 *
+	 * @param string $postcode
+	 * @param string $country
+	 * @return string
+	 */
+	public function get_normalized_postcode( $postcode, $country_code ) {
+
+		if ( 'GB' === $country_code ) {
+			// Replaces a redacted string with something like LN10***.
+			return str_pad( preg_replace( '/\s+/', '', $postcode ), 7, '*' );
+		}
+		if ( 'CA' === $country_code ) {
+			// Replaces a redacted string with something like L4Y***.
+			return str_pad( preg_replace( '/\s+/', '', $postcode ), 6, '*' );
+		}
+
+		return $postcode;
 	}
 
 	/**

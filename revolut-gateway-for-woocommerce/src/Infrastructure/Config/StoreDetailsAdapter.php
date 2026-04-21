@@ -14,7 +14,8 @@ class StoreDetailsAdapter implements StoreDetailsAdapterInterface
 
     public function getStoreDomain(): string
     {  
-        $site_url = get_site_url(); 
+        $site_id  = get_current_blog_id();
+		$site_url = is_multisite() ? get_site_url( $site_id ) : site_url();
         return parse_url($site_url, PHP_URL_HOST);
     }
 

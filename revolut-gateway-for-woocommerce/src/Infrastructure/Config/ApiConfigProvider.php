@@ -5,12 +5,12 @@ namespace Revolut\Wordpress\Infrastructure\Config;
 use Revolut\Wordpress\Infrastructure\OptionRepository;
 
 use Revolut\Plugin\Infrastructure\Config\Api\Environment;
-use Revolut\Plugin\Infrastructure\Config\Api\Config;
 use Revolut\Plugin\Infrastructure\Config\Api\ProdConfig;
 use Revolut\Plugin\Infrastructure\Config\Api\DevConfig;
 use Revolut\Plugin\Infrastructure\Config\Api\SandboxConfig;
 use Revolut\Plugin\Services\Config\Api\ConfigProviderInterface;
 use Revolut\Plugin\Services\Repositories\TokenRepositoryInterface;
+use Revolut\Plugin\Services\Config\Api\ConfigInterface;
 
 class ApiConfigProvider implements ConfigProviderInterface
 {
@@ -25,7 +25,7 @@ class ApiConfigProvider implements ConfigProviderInterface
         $this->configOptions = $this->repository->get('woocommerce_revolut_settings');
     }
 
-    public function getConfig(?string $mode = null): Config
+    public function getConfig(?string $mode = null): ConfigInterface
     {        
         if(!$mode){
             $mode = isset($this->configOptions['mode']) ? $this->configOptions['mode'] : '';
