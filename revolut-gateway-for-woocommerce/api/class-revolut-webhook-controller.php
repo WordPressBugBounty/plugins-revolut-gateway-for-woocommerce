@@ -295,7 +295,7 @@ class Revolut_Webhook_Controller extends \WC_REST_Data_Controller {
 			);
 		}
 
-		if ( ! in_array( $event, array( 'ORDER_COMPLETED', 'ORDER_AUTHORISED', 'ORDER_PAYMENT_DECLINED', 'ORDER_PAYMENT_FAILED' ), true ) ) {
+		if ( ! in_array( $event, array( 'ORDER_COMPLETED', 'ORDER_AUTHORISED', 'ORDER_PAYMENT_DECLINED', 'ORDER_PAYMENT_FAILED', 'ORDER_CANCELLED' ), true ) ) {
 			return new WP_REST_Response(
 				array(
 					'status'  => 'Failed',
@@ -360,6 +360,22 @@ class Revolut_Webhook_Controller extends \WC_REST_Data_Controller {
 				array(
 					'status'  => 'OK',
 					'message' => $response_msg,
+				),
+				200
+			);
+		}
+
+		if ( 'ORDER_CANCELLED' === $event ) {
+			$result       = $this->process_cancelled_order( $revolut_order_id, $wc_order->get_id() );
+			$response_msg = $result ? 'Payment CANCELLED event handled by webhook' : 'Payment CANCELLED event handled by main process';
+
+			if ( $result ) {
+				RLog::info( 'Order ID(' . $wc_order->get_id() . ' - ' . $revolut_order_id . ') ' . $response_msg );
+			}
+
+			return new WP_REST_Response(
+				array(
+					'status'   => 'OK'
 				),
 				200
 			);

@@ -83,6 +83,7 @@ class WC_Revolut_Settings_API extends WC_Settings_API {
 		'ORDER_AUTHORISED',
 		'ORDER_PAYMENT_FAILED',
 		'ORDER_PAYMENT_DECLINED',
+		'ORDER_CANCELLED',
 	);
 	/**
 	 * New address validation webhook endpoint path

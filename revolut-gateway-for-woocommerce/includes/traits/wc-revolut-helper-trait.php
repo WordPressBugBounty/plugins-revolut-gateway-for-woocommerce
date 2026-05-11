@@ -1103,6 +1103,52 @@ trait WC_Gateway_Revolut_Helper_Trait {
 	}
 
 	/**
+	 * Process Cancelled WooCommerce Order
+	 *
+	 * @param string $revolut_order_id Revolut Payment id.
+	 * @param id     $wc_order_id      WooCommerce order id.
+	 */
+	protected function process_cancelled_order( $revolut_order_id, $wc_order_id ) {
+		$revolut_order_id = strtolower( $revolut_order_id );
+
+		$process_cancelled_order_lock = ServiceProvider::processCancelledOrderLock( $revolut_order_id );
+
+		if ( ! $process_cancelled_order_lock->acquire() ) {
+			return false;
+		}
+
+		try {
+			if ( ! $this->is_cancelled_payment( $revolut_order_id ) ) {
+				return false;
+			}
+
+			$options = ServiceProvider::optionRepository();
+
+			$is_revolut_order_processed = (int) $options->get( 'is_revolut_order_processed_' . $revolut_order_id );
+
+			if ( $is_revolut_order_processed ) {
+				return false;
+			}
+
+			$wc_order = wc_get_order( $wc_order_id );
+
+			if ( ! $wc_order ) {
+				return false;
+			}
+
+			if ( ! $wc_order->has_status( array( 'pending', 'on-hold' ) ) ) {
+				return false;
+			}
+
+			$wc_order->update_status( 'cancelled', 'Order cancelled via Webhook.' );
+
+			return true;
+		} finally {
+			$process_cancelled_order_lock->release();
+		}
+	}
+
+	/**
 	 * Mark WooCommerce Order as failed
 	 *
 	 * @param string $revolut_order_id        Revolut Payment id.
@@ -1139,6 +1185,16 @@ trait WC_Gateway_Revolut_Helper_Trait {
 		$wc_order->update_status( 'failed' );
 
 		return true;
+	}
+
+	/**
+	 * Check if payment is cancelled.
+	 *
+	 * @param string $revolut_order_id Revolut order id.
+	 */
+	protected function is_cancelled_payment( $revolut_order_id ) {
+		$revolut_order = MerchantApi::privateLegacy()->get( '/orders/' . $revolut_order_id );
+		return ( isset( $revolut_order['state'] ) && 'CANCELLED' === $revolut_order['state'] );
 	}
 
 	/**
