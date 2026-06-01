@@ -40,7 +40,7 @@ class OptionRepository implements OptionRepositoryInterface
         return (json_last_error() === JSON_ERROR_NONE);
     }
 
-    public function add($name, $value, $autoload = 'yes')
+    public function add($name, $value, $autoload = 'no')
     {
         $value = $this->maybeEncode($value);
 
@@ -53,7 +53,7 @@ class OptionRepository implements OptionRepositoryInterface
         return $res;
     }
 
-    public function addOrUpdate($name, $value, $autoload = 'yes')
+    public function addOrUpdate($name, $value, $autoload = 'no')
     {
         $value = $this->maybeEncode($value);
 
